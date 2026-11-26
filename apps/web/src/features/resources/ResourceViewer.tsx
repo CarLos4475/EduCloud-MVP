@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { api } from "../../api";
 import { SafeMarkdown } from "../../components/SafeMarkdown";
 import { StageProgress } from "../../components/Skeleton";
+import { localWorkspace } from "../../mvp/workspace";
 import { watch } from "../notify/watch";
 import { Connections, Exercises } from "./Exercises";
 import { Flashcards, Quiz } from "./Practice";
@@ -324,32 +325,36 @@ export function ResourceViewer({
         ) : (
           <>
             <h2>{detail.title}</h2>
-            <button
-              className="text-button"
-              onClick={() => setEditingTitle(true)}
-            >
-              Cambiar nombre
-            </button>
+            {!localWorkspace && (
+              <button
+                className="text-button"
+                onClick={() => setEditingTitle(true)}
+              >
+                Cambiar nombre
+              </button>
+            )}
           </>
         )}
-        <button
-          className="text-button"
-          disabled={busy}
-          onClick={() =>
-            void run(async () => {
-              await api(`/resources/${detail.id}`, {
-                method: "PATCH",
-                body: JSON.stringify({
-                  expectedRevision: detail.revision,
-                  archived: true,
-                }),
-              });
-              onClose();
-            })
-          }
-        >
-          Archivar
-        </button>
+        {!localWorkspace && (
+          <button
+            className="text-button"
+            disabled={busy}
+            onClick={() =>
+              void run(async () => {
+                await api(`/resources/${detail.id}`, {
+                  method: "PATCH",
+                  body: JSON.stringify({
+                    expectedRevision: detail.revision,
+                    archived: true,
+                  }),
+                });
+                onClose();
+              })
+            }
+          >
+            Archivar
+          </button>
+        )}
       </header>
       {error && (
         <p role="alert" className="form-error">
@@ -468,6 +473,7 @@ export function ResourceViewer({
               key={version.id}
               content={version.content}
               versionId={version.id}
+              onProgress={localWorkspace ? onClose : undefined}
             />
           )}
           {detail.kind === "exercises" && (
@@ -488,7 +494,7 @@ export function ResourceViewer({
           <Sources items={version.citations} />
         </>
       )}
-      {!waiting && (
+      {!localWorkspace && !waiting && (
         <form className="resource-change" onSubmit={askChange}>
           {version?.status === "succeeded" && (
             <div className="quick-changes" aria-label="Cambios rápidos">

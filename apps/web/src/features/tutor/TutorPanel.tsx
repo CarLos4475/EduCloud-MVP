@@ -205,7 +205,11 @@ export function TutorPanel({
           setConversations(chats.items);
           setMaterials(files.items);
           if (localWorkspace)
-            setMaterialIds(files.items.filter((item) => item.status === "ready").map((item) => item.id));
+            setMaterialIds(
+              files.items
+                .filter((item) => item.status === "ready")
+                .map((item) => item.id),
+            );
         }
       })
       .catch((e) => {
@@ -390,9 +394,102 @@ export function TutorPanel({
     window.speechSynthesis.speak(utterance);
     setSpeaking(true);
   }
+  const activeNoteNames = materials
+    .filter((m) => materialIds.includes(m.id))
+    .map((m) => m.name);
+  const tutorPickers = (
+    <div className="tutor-pickers">
+      <label>
+        <span className="field-label">
+          <Icon name="book" size={16} /> Materia del tutor
+        </span>
+        <select
+          value={subject}
+          disabled={busy || Boolean(pending)}
+          onChange={(e) => setSubject(e.target.value)}
+        >
+          {subjects.map((s) => (
+            <option key={s.id} value={s.id}>
+              {String(s.name)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span className="field-label">
+          <Icon name="chat" size={16} /> Conversación
+        </span>
+        <select
+          value={conversationId}
+          disabled={busy || Boolean(pending)}
+          onChange={(e) => void chooseConversation(e.target.value)}
+        >
+          <option value="">Nueva conversación</option>
+          {conversations.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.title}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
+  );
+  const generalConsent = sourceMode === "selected_material" && (
+    <label className={`general-toggle ${general ? "selected" : ""}`}>
+      <input
+        type="checkbox"
+        checked={general}
+        onChange={(e) => setGeneral(e.target.checked)}
+        disabled={Boolean(pending)}
+      />
+      <Icon name="globe" size={16} />
+      Autorizar conocimiento general solo para esta pregunta
+    </label>
+  );
+  const composer = (
+    <form
+      className={`tutor-composer ${!localWorkspace && turns.length ? "sticky" : ""}`}
+      onSubmit={submit}
+    >
+      {localWorkspace && (
+        <p className="tutor-active-source">
+          {sourceMode === "general"
+            ? "Fuente: conocimiento general"
+            : activeNoteNames.length
+              ? `Apunte activo: ${activeNoteNames.join(", ")}`
+              : "Selecciona tus fuentes en las opciones del tutor."}
+        </p>
+      )}
+      <label>
+        <span className="field-label">Tu pregunta</span>
+        <textarea
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          maxLength={2000}
+          rows={2}
+          required
+          disabled={busy || Boolean(pending)}
+          placeholder="Escribe lo que no te queda claro…"
+        />
+      </label>
+      <div className="composer-row">
+        {!localWorkspace && (generalConsent || <span />)}
+        <button
+          className="primary with-icon"
+          disabled={busy || Boolean(pending) || !question.trim()}
+        >
+          Enviar pregunta
+          <Icon name="send" size={18} />
+        </button>
+      </div>
+      <small>
+        La IA puede equivocarse. Comprueba las fuentes y los cálculos.
+      </small>
+    </form>
+  );
   return (
     <aside
-      className="tutor-drawer study-tutor"
+      className={`tutor-drawer study-tutor${localWorkspace ? " mvp-tutor" : ""}`}
       role="dialog"
       aria-label="Tutor"
       aria-modal="false"
@@ -432,77 +529,53 @@ export function TutorPanel({
         </p>
       ) : (
         <>
+          {localWorkspace && composer}
           <div className="tutor-context">
-            <div className="tutor-pickers">
-              <label>
-                <span className="field-label">
-                  <Icon name="book" size={16} /> Materia del tutor
+            {!localWorkspace && tutorPickers}
+            {!localWorkspace && (
+              <div className="tutor-summary" aria-hidden="true">
+                <span className="chip tone-gold">
+                  <Icon
+                    name={
+                      PERSONALITIES.find((p) => p.id === personalityId)?.icon ??
+                      "steps"
+                    }
+                    size={14}
+                  />
+                  {PERSONALITIES.find((p) => p.id === personalityId)?.label}
                 </span>
-                <select
-                  value={subject}
-                  disabled={busy || Boolean(pending)}
-                  onChange={(e) => setSubject(e.target.value)}
-                >
-                  {subjects.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {String(s.name)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <span className="field-label">
-                  <Icon name="chat" size={16} /> Conversación
+                <span className={`chip mode-${assistanceMode}`}>
+                  <Icon
+                    name={
+                      MODES.find((m) => m.id === assistanceMode)?.icon ?? "book"
+                    }
+                    size={14}
+                  />
+                  {MODES.find((m) => m.id === assistanceMode)?.label}
                 </span>
-                <select
-                  value={conversationId}
-                  disabled={busy || Boolean(pending)}
-                  onChange={(e) => void chooseConversation(e.target.value)}
-                >
-                  <option value="">Nueva conversación</option>
-                  {conversations.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="tutor-summary" aria-hidden="true">
-              <span className="chip tone-gold">
-                <Icon
-                  name={
-                    PERSONALITIES.find((p) => p.id === personalityId)?.icon ??
-                    "steps"
-                  }
-                  size={14}
-                />
-                {PERSONALITIES.find((p) => p.id === personalityId)?.label}
-              </span>
-              <span className={`chip mode-${assistanceMode}`}>
-                <Icon
-                  name={
-                    MODES.find((m) => m.id === assistanceMode)?.icon ?? "book"
-                  }
-                  size={14}
-                />
-                {MODES.find((m) => m.id === assistanceMode)?.label}
-              </span>
-              <span className="chip tone-navy">
-                <Icon
-                  name={sourceMode === "general" ? "globe" : "file"}
-                  size={14}
-                />
-                {sourceMode === "general"
-                  ? "Conocimiento general"
-                  : `${materialIds.length} ${materialIds.length === 1 ? "apunte" : "apuntes"}`}
-              </span>
-            </div>
-            <details open={!conversationId}>
+                <span className="chip tone-navy">
+                  <Icon
+                    name={sourceMode === "general" ? "globe" : "file"}
+                    size={14}
+                  />
+                  {sourceMode === "general"
+                    ? "Conocimiento general"
+                    : `${materialIds.length} ${materialIds.length === 1 ? "apunte" : "apuntes"}`}
+                </span>
+              </div>
+            )}
+            <details open={localWorkspace ? undefined : !conversationId}>
               <summary>
-                <Icon name="compass" size={18} /> Tu tutor y sus fuentes
+                <Icon name="compass" size={18} />{" "}
+                {localWorkspace
+                  ? "Opciones del tutor"
+                  : "Tu tutor y sus fuentes"}
               </summary>
               <div className="tutor-settings">
+                {localWorkspace && tutorPickers}
+                {localWorkspace && generalConsent && (
+                  <div className="mvp-tutor-consent">{generalConsent}</div>
+                )}
                 <fieldset className="card-choices" disabled={Boolean(pending)}>
                   <legend>¿Cómo quieres que te ayude?</legend>
                   {PERSONALITIES.map((p) => (
@@ -641,34 +714,45 @@ export function TutorPanel({
             </details>
           </div>
           <div className="conversation-history" aria-live="polite">
-            {!turns.length && (
-              <div className="tutor-empty">
-                <span className="tutor-avatar hero" aria-hidden="true">
-                  <ArtImage src="/art/tutor-empty.png">
-                    <Icon name="spark" size={44} />
-                  </ArtImage>
-                </span>
-                <p className="handwritten">Una pregunta abre el camino.</p>
-                <p>
-                  Elige tus apuntes y pide una explicación, pistas o una
-                  solución completa. Tu conversación queda guardada por materia.
-                </p>
-                <div className="suggestions">
-                  {(localWorkspace && subject === "circuitos"
-                    ? ["¿Qué pasa si aumenta la resistencia?", ...SUGGESTIONS.slice(1)]
-                    : SUGGESTIONS).map((text) => (
-                    <button
-                      type="button"
-                      key={text}
-                      className="suggestion"
-                      onClick={() => setQuestion(text)}
-                    >
-                      {text}
-                    </button>
-                  ))}
+            {!turns.length &&
+              (localWorkspace ? (
+                subject === "circuitos" && (
+                  <button
+                    className="suggestion"
+                    onClick={() =>
+                      setQuestion("¿Qué pasa si aumenta la resistencia?")
+                    }
+                  >
+                    ¿Qué pasa si aumenta la resistencia?
+                  </button>
+                )
+              ) : (
+                <div className="tutor-empty">
+                  <span className="tutor-avatar hero" aria-hidden="true">
+                    <ArtImage src="/art/tutor-empty.png">
+                      <Icon name="spark" size={44} />
+                    </ArtImage>
+                  </span>
+                  <p className="handwritten">Una pregunta abre el camino.</p>
+                  <p>
+                    Elige tus apuntes y pide una explicación, pistas o una
+                    solución completa. Tu conversación queda guardada por
+                    materia.
+                  </p>
+                  <div className="suggestions">
+                    {SUGGESTIONS.map((text) => (
+                      <button
+                        type="button"
+                        key={text}
+                        className="suggestion"
+                        onClick={() => setQuestion(text)}
+                      >
+                        {text}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              ))}
             {turns.map((t) => (
               <article className="turn" key={t.id}>
                 <div className="student-message">
@@ -770,7 +854,8 @@ export function TutorPanel({
                         </button>
                       </div>
                     )}
-                    {t.status === "succeeded" &&
+                    {!localWorkspace &&
+                      t.status === "succeeded" &&
                       (made?.turnId === t.id ||
                         (t.actions && t.actions.length > 0) ||
                         t.citations.length > 0 ||
@@ -900,54 +985,12 @@ export function TutorPanel({
                 </div>
               </article>
             ))}
-            {localWorkspace && asking && <Skeleton lines={3} label="Preparando tu respuesta…" />}
+            {localWorkspace && asking && (
+              <Skeleton lines={3} label="Preparando tu respuesta…" />
+            )}
             <div ref={endOfChat} className="chat-end" aria-hidden="true" />
           </div>
-          <form
-            className={`tutor-composer ${turns.length ? "sticky" : ""}`}
-            onSubmit={submit}
-          >
-            <label>
-              <span className="field-label">Tu pregunta</span>
-              <textarea
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                maxLength={2000}
-                rows={2}
-                required
-                disabled={busy || Boolean(pending)}
-                placeholder="Escribe lo que no te queda claro…"
-              />
-            </label>
-            <div className="composer-row">
-              {sourceMode === "selected_material" ? (
-                <label
-                  className={`general-toggle ${general ? "selected" : ""}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={general}
-                    onChange={(e) => setGeneral(e.target.checked)}
-                    disabled={Boolean(pending)}
-                  />
-                  <Icon name="globe" size={16} />
-                  Autorizar conocimiento general solo para esta pregunta
-                </label>
-              ) : (
-                <span />
-              )}
-              <button
-                className="primary with-icon"
-                disabled={busy || Boolean(pending) || !question.trim()}
-              >
-                Enviar pregunta
-                <Icon name="send" size={18} />
-              </button>
-            </div>
-            <small>
-              La IA puede equivocarse. Comprueba las fuentes y los cálculos.
-            </small>
-          </form>
+          {!localWorkspace && composer}
         </>
       )}
       {source && (

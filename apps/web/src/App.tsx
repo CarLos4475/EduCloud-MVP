@@ -14,6 +14,7 @@ import {
   observeLocalSession,
   type LocalSession,
 } from "./mvp/workspace";
+import { exampleQuizId, subjectId as exampleSubjectId } from "./mvp/fixtures";
 import { Login } from "./features/auth/Login";
 import { Editor, EditorState } from "./features/academic/Editor";
 import { Illustration } from "./components/Illustration";
@@ -224,7 +225,7 @@ export function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
   useEffect(() => {
-    if (!user) return;
+    if (!user || localWorkspace) return;
     const onKey = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -387,6 +388,9 @@ export function App() {
       String(s.name).toLocaleLowerCase().includes(query.toLocaleLowerCase()),
   );
   const subject = data.subjects.find((s) => s.id === selected);
+  const firstSubject =
+    data.subjects.find((s) => s.id === exampleSubjectId && !s.archived) ??
+    activeSubjects[0];
   const pending = data.agenda
     .filter((item) => item.status !== "done")
     .sort((a, b) =>
@@ -574,7 +578,7 @@ export function App() {
     );
   return (
     <div className="campus-shell">
-      <aside className="sidebar">
+      <aside className={localWorkspace ? "sidebar mvp-sidebar" : "sidebar"}>
         <button
           className="brand"
           onClick={() => navigate("home")}
@@ -589,33 +593,48 @@ export function App() {
             ["library", "book", "Biblioteca"],
             ["agenda", "calendar", "Calendario"],
             ["profile", "user", "Mi perfil"],
-          ].map(([key, icon, label]) => (
-            <button
-              key={key}
-              className={
-                nav === key || (key === "agenda" && nav === "schedule")
-                  ? "active"
-                  : ""
-              }
-              onClick={() => navigate(key)}
-            >
-              <span aria-hidden="true" className="nav-icon">
-                <ArtImage
-                  src={`/art/icons/nav-${key === "agenda" ? "calendar" : key}.png`}
-                >
-                  <Icon name={icon as IconName} size={22} />
-                </ArtImage>
-              </span>
-              {label}
-            </button>
-          ))}
+          ]
+            .filter(
+              ([key]) =>
+                !localWorkspace || ["home", "subjects", "agenda"].includes(key),
+            )
+            .map(([key, icon, label]) => (
+              <button
+                key={key}
+                className={
+                  nav === key || (key === "agenda" && nav === "schedule")
+                    ? "active"
+                    : ""
+                }
+                onClick={() => navigate(key)}
+              >
+                <span aria-hidden="true" className="nav-icon">
+                  <ArtImage
+                    src={`/art/icons/nav-${key === "agenda" ? "calendar" : key}.png`}
+                  >
+                    <Icon name={icon as IconName} size={22} />
+                  </ArtImage>
+                </span>
+                {label}
+              </button>
+            ))}
         </nav>
         <div className="sidebar-bottom">
           <span className="avatar">
             {displayName.slice(0, 1).toUpperCase()}
           </span>
           <div>
-            <strong>{displayName}</strong>
+            {localWorkspace ? (
+              <button
+                className="text-button"
+                aria-label={`Abrir el perfil de ${displayName}`}
+                onClick={() => navigate("profile")}
+              >
+                {displayName}
+              </button>
+            ) : (
+              <strong>{displayName}</strong>
+            )}
             <small>{String(profile?.career || "Mi espacio")}</small>
           </div>
           <button className="text-button" onClick={leaveWorkspace}>
@@ -632,54 +651,56 @@ export function App() {
               month: "short",
             })}
           </span>
-          <div className="topbar-actions">
-            <label className="search-label">
-              <span className="sr-only">Buscar materias</span>
-              <input
-                type="search"
-                placeholder="Buscar en tus materias…"
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setNav("subjects");
-                  setSelected(null);
-                  setOpenResource(null);
+          {!localWorkspace && (
+            <div className="topbar-actions">
+              <label className="search-label">
+                <span className="sr-only">Buscar materias</span>
+                <input
+                  type="search"
+                  placeholder="Buscar en tus materias…"
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setNav("subjects");
+                    setSelected(null);
+                    setOpenResource(null);
+                  }}
+                />
+              </label>
+              <button
+                className="palette-button"
+                onClick={() => {
+                  setSheet(null);
+                  setPalette(true);
                 }}
-              />
-            </label>
-            <button
-              className="palette-button"
-              onClick={() => {
-                setSheet(null);
-                setPalette(true);
-              }}
-              aria-label="Buscar o ir a"
-              title="Buscar o ir a (Ctrl K)"
-            >
-              <ArtImage
-                src="/art/icons/action-search.png"
-                className="action-art"
+                aria-label="Buscar o ir a"
+                title="Buscar o ir a (Ctrl K)"
               >
-                <Icon name="compass" size={18} />
-              </ArtImage>
-              <kbd>Ctrl K</kbd>
-            </button>
-            <button className="create-button" onClick={() => createHere()}>
-              <ArtImage
-                src="/art/icons/action-create.png"
-                className="action-art"
+                <ArtImage
+                  src="/art/icons/action-search.png"
+                  className="action-art"
+                >
+                  <Icon name="compass" size={18} />
+                </ArtImage>
+                <kbd>Ctrl K</kbd>
+              </button>
+              <button className="create-button" onClick={() => createHere()}>
+                <ArtImage
+                  src="/art/icons/action-create.png"
+                  className="action-art"
+                >
+                  {null}
+                </ArtImage>
+                + Crear
+              </button>
+              <button
+                className="primary tutor-button"
+                onClick={() => setTutor(true)}
               >
-                {null}
-              </ArtImage>
-              + Crear
-            </button>
-            <button
-              className="primary tutor-button"
-              onClick={() => setTutor(true)}
-            >
-              ✦ Abrir tutor
-            </button>
-          </div>
+                ✦ Abrir tutor
+              </button>
+            </div>
+          )}
         </header>
         {error && !editor && (
           <div className="message error" role="alert">
@@ -716,115 +737,160 @@ export function App() {
                 </ArtImage>
               </div>
             </section>
-            {profile &&
-              Number(profile.tutorialStep || 0) < 5 &&
-              !data.subjects.length && (
-                <section className="onboarding">
-                  <div>
-                    <span className="eyebrow">PRIMERA PARADA</span>
-                    <h3>Construye tu semestre a tu manera.</h3>
-                    <p>
-                      Crea una materia, elige su dibujo y anota tu primer
-                      pendiente. El resto puede esperar.
-                    </p>
-                  </div>
-                  <div>
-                    <button
-                      className="primary"
-                      onClick={() => {
-                        setNav("subjects");
-                        setEditor({ collection: "subjects" });
-                      }}
-                    >
-                      Crear mi primera materia
-                    </button>
-                    <button
-                      className="text-button"
-                      onClick={() => void skipTutorial()}
-                    >
-                      Lo haré después
-                    </button>
-                  </div>
-                </section>
-              )}
-            <ContinueSection
-              subjects={data.subjects.filter((s) => !s.archived)}
-              onResource={showResource}
-              onSubject={(id, next) => openSubject(id, next)}
-              onCreate={(id) => createHere({ subjectId: id })}
-            />
-            <div className="home-columns">
-              <section>
-                <div className="section-heading">
-                  <h2>Mis materias</h2>
-                  <button
-                    className="text-button"
-                    onClick={() => {
-                      setError("");
-                      setEditor({ collection: "subjects" });
-                    }}
-                  >
-                    + Agregar materia
-                  </button>
-                </div>
-                {subjectCards(
-                  data.subjects.filter((s) => !s.archived).slice(0, 4),
-                )}
-                {!data.subjects.some((s) => !s.archived) && (
-                  <div className="empty-state">
-                    <span aria-hidden="true">↗</span>
-                    <h3>Aquí empieza tu siguiente idea.</h3>
-                    <p>
-                      Agrega la materia que quieras. Su nombre, temas e
-                      ilustración los eliges tú.
-                    </p>
-                  </div>
-                )}
-                <div className="study-note">
-                  <span className="eyebrow">A TU RITMO</span>
-                  <h2>
-                    Un poco de orden.
-                    <br />
-                    Más espacio para aprender.
-                  </h2>
-                  <p>
-                    Empieza por lo que tienes pendiente y reserva un momento
-                    para tus preguntas.
-                  </p>
-                  <button
-                    className="gold-button"
-                    onClick={() => navigate("agenda")}
-                  >
-                    Organizar mi semana →
-                  </button>
-                </div>
-              </section>
-              <aside className="upcoming">
-                <div className="section-heading">
-                  <h2>Lo que viene</h2>
-                </div>
-                {pending.length ? (
-                  agendaRows(pending.slice(0, 4))
+            {localWorkspace ? (
+              <div className="home-columns">
+                {firstSubject ? (
+                  <section className="study-note mvp-start">
+                    <div>
+                      <h2>{String(firstSubject.name)}</h2>
+                      <p>
+                        Consulta tus apuntes, pregunta al tutor y comprueba lo
+                        que aprendiste.
+                      </p>
+                      <button
+                        className="gold-button"
+                        onClick={() => openSubject(firstSubject.id, "apuntes")}
+                      >
+                        Ver apuntes de {String(firstSubject.name)}
+                      </button>
+                    </div>
+                    <Illustration id={String(firstSubject.illustrationId)} />
+                  </section>
                 ) : (
-                  <div className="empty-state">
-                    <h3>Una semana por escribir.</h3>
-                    <p>Anota tareas, exámenes o momentos de estudio.</p>
-                    <button
-                      className="secondary"
-                      onClick={() => setEditor({ collection: "agenda" })}
-                    >
-                      Agregar pendiente
-                    </button>
-                  </div>
+                  !loading && (
+                    <section className="panel">
+                      <h2>Agrega tu primera materia</h2>
+                      <button
+                        className="primary"
+                        onClick={() => setEditor({ collection: "subjects" })}
+                      >
+                        Agregar materia
+                      </button>
+                    </section>
+                  )
                 )}
-                <section className="passport-note">
-                  <span className="eyebrow">CADA PASO CUENTA</span>
-                  <h3>Tu camino, a la vista.</h3>
-                  <PassportSummary onOpen={() => navigate("profile")} />
-                  <div aria-hidden="true">✧ ── ✧ ── ✧</div>
-                </section>
-              </aside>
-            </div>
+                {pending.length > 0 && (
+                  <aside className="upcoming">
+                    <div className="section-heading">
+                      <h2>Lo que viene</h2>
+                    </div>
+                    {agendaRows(pending.slice(0, 2))}
+                  </aside>
+                )}
+              </div>
+            ) : (
+              <>
+                {profile &&
+                  Number(profile.tutorialStep || 0) < 5 &&
+                  !data.subjects.length && (
+                    <section className="onboarding">
+                      <div>
+                        <span className="eyebrow">PRIMERA PARADA</span>
+                        <h3>Construye tu semestre a tu manera.</h3>
+                        <p>
+                          Crea una materia, elige su dibujo y anota tu primer
+                          pendiente. El resto puede esperar.
+                        </p>
+                      </div>
+                      <div>
+                        <button
+                          className="primary"
+                          onClick={() => {
+                            setNav("subjects");
+                            setEditor({ collection: "subjects" });
+                          }}
+                        >
+                          Crear mi primera materia
+                        </button>
+                        <button
+                          className="text-button"
+                          onClick={() => void skipTutorial()}
+                        >
+                          Lo haré después
+                        </button>
+                      </div>
+                    </section>
+                  )}
+                <ContinueSection
+                  subjects={data.subjects.filter((s) => !s.archived)}
+                  onResource={showResource}
+                  onSubject={(id, next) => openSubject(id, next)}
+                  onCreate={(id) => createHere({ subjectId: id })}
+                />
+                <div className="home-columns">
+                  <section>
+                    <div className="section-heading">
+                      <h2>Mis materias</h2>
+                      <button
+                        className="text-button"
+                        onClick={() => {
+                          setError("");
+                          setEditor({ collection: "subjects" });
+                        }}
+                      >
+                        + Agregar materia
+                      </button>
+                    </div>
+                    {subjectCards(
+                      data.subjects.filter((s) => !s.archived).slice(0, 4),
+                    )}
+                    {!data.subjects.some((s) => !s.archived) && (
+                      <div className="empty-state">
+                        <span aria-hidden="true">↗</span>
+                        <h3>Aquí empieza tu siguiente idea.</h3>
+                        <p>
+                          Agrega la materia que quieras. Su nombre, temas e
+                          ilustración los eliges tú.
+                        </p>
+                      </div>
+                    )}
+                    <div className="study-note">
+                      <span className="eyebrow">A TU RITMO</span>
+                      <h2>
+                        Un poco de orden.
+                        <br />
+                        Más espacio para aprender.
+                      </h2>
+                      <p>
+                        Empieza por lo que tienes pendiente y reserva un momento
+                        para tus preguntas.
+                      </p>
+                      <button
+                        className="gold-button"
+                        onClick={() => navigate("agenda")}
+                      >
+                        Organizar mi semana →
+                      </button>
+                    </div>
+                  </section>
+                  <aside className="upcoming">
+                    <div className="section-heading">
+                      <h2>Lo que viene</h2>
+                    </div>
+                    {pending.length ? (
+                      agendaRows(pending.slice(0, 4))
+                    ) : (
+                      <div className="empty-state">
+                        <h3>Una semana por escribir.</h3>
+                        <p>Anota tareas, exámenes o momentos de estudio.</p>
+                        <button
+                          className="secondary"
+                          onClick={() => setEditor({ collection: "agenda" })}
+                        >
+                          Agregar pendiente
+                        </button>
+                      </div>
+                    )}
+                    <section className="passport-note">
+                      <span className="eyebrow">CADA PASO CUENTA</span>
+                      <h3>Tu camino, a la vista.</h3>
+                      <PassportSummary onOpen={() => navigate("profile")} />
+                      <div aria-hidden="true">✧ ── ✧ ── ✧</div>
+                    </section>
+                  </aside>
+                </div>
+              </>
+            )}
           </>
         )}
 
@@ -951,17 +1017,19 @@ export function App() {
               {tab === "resumen" && (
                 <>
                   <div className="subject-quick">
-                    <button
-                      className="primary"
-                      onClick={() => createHere({ subjectId: subject.id })}
-                    >
-                      + Crear un recurso
-                    </button>
+                    {!localWorkspace && (
+                      <button
+                        className="primary"
+                        onClick={() => createHere({ subjectId: subject.id })}
+                      >
+                        + Crear un recurso
+                      </button>
+                    )}
                     <button
                       className="secondary"
                       onClick={() => setTab("apuntes")}
                     >
-                      Subir apuntes
+                      {localWorkspace ? "Ver apuntes" : "Subir apuntes"}
                     </button>
                     <button
                       className="secondary"
@@ -1093,6 +1161,12 @@ export function App() {
                   subjectId={subject.id}
                   topics={data.topics.filter((t) => t.subjectId === subject.id)}
                   onTopicsChanged={() => void load()}
+                  onAsk={localWorkspace ? () => setTutor(true) : undefined}
+                  onPractice={
+                    localWorkspace && subject.id === exampleSubjectId
+                      ? () => showResource(subject.id, exampleQuizId)
+                      : undefined
+                  }
                 />
               )}
 
@@ -1241,7 +1315,7 @@ export function App() {
               <h1>Mi espacio.</h1>
             </div>
             <div className="profile-grid">
-              <PassportPanel />
+              {!localWorkspace && <PassportPanel />}
               <section className="panel">
                 <h2>Tu perfil</h2>
                 <form onSubmit={saveProfile}>
@@ -1339,7 +1413,7 @@ export function App() {
         />
       )}
       <ResourceToasts onOpen={showResource} />
-      {!tutor && !sheet && !palette && !editor && (
+      {!localWorkspace && !tutor && !sheet && !palette && !editor && (
         <button
           className="tutor-fab"
           onClick={() => setTutor(true)}

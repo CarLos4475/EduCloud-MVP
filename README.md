@@ -10,7 +10,7 @@ Al estudiar para una materia, es común tener los apuntes en un archivo, los pen
 
 ## ¿Qué se puede hacer hoy?
 
-En el [MVP público de EduCloud](https://educloud-mvp.vercel.app), crea un espacio y abre **Circuitos eléctricos**. Puedes consultar el calendario, preguntarle al tutor qué pasa con la corriente cuando aumenta la resistencia, abrir la cita del apunte sobre la ley de Ohm y resolver una práctica. El resultado aparece en **Tu progreso**.
+En el [MVP público de EduCloud](https://educloud-mvp.vercel.app), crea un espacio y elige **Ver apuntes de Circuitos eléctricos**. Pregúntale al tutor qué pasa con la corriente cuando aumenta la resistencia y abre la cita del apunte sobre la ley de Ohm. Resuelve la práctica y elige **Ver tu progreso** para consultar tu resultado. El calendario está disponible desde el menú.
 
 El tutor responde con DeepSeek. El espacio y el avance se guardan en el navegador. El selector muestra el nombre y el tamaño del archivo que eliges. Para las consultas, el tutor usa el apunte incluido en la materia.
 

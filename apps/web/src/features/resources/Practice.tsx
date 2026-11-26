@@ -349,9 +349,11 @@ type Question = {
 export function Quiz({
   content,
   versionId,
+  onProgress,
 }: {
   content: { questions: Question[] };
   versionId: string;
+  onProgress?: () => void;
 }) {
   const questions = content.questions;
   const [attempt, setAttempt] = useState(0);
@@ -469,7 +471,12 @@ export function Quiz({
           </h3>
         )}
         <div className="button-row">
-          {failed.length > 0 && (
+          {onProgress && saved && (
+            <button className="primary" onClick={onProgress}>
+              Ver tu progreso
+            </button>
+          )}
+          {!onProgress && failed.length > 0 && (
             <button
               className="primary"
               onClick={() => {
@@ -487,7 +494,7 @@ export function Quiz({
             </button>
           )}
           <button
-            className={failed.length ? "secondary" : "primary"}
+            className={onProgress || failed.length ? "secondary" : "primary"}
             onClick={() => {
               setAttempt((a) => a + 1);
               setRound(1);

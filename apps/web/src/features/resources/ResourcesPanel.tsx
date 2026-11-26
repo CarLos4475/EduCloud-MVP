@@ -6,6 +6,7 @@ import { ResourceViewer } from "./ResourceViewer";
 import type { ResourceDetail, ResourceRow } from "./types";
 import { KINDS } from "./types";
 import { ArtImage } from "../../components/Icons";
+import { localWorkspace } from "../../mvp/workspace";
 
 const ACTIVE = ["queued", "running", "cancel_requested"];
 
@@ -28,9 +29,9 @@ export function ResourcesPanel({
   const [error, setError] = useState("");
   const top = useRef<HTMLElement>(null);
   const detailId = detail?.id;
-  // Al abrir un recurso, la vista sube hasta él en lugar de quedar al final de la página.
+  // Sitúa el recurso o el progreso del MVP al inicio de la vista.
   useEffect(() => {
-    if (!detailId) return;
+    if (!detailId && !localWorkspace) return;
     const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     top.current?.scrollIntoView({
       behavior: calm ? "auto" : "smooth",
@@ -119,6 +120,9 @@ export function ResourcesPanel({
       </section>
     );
 
+  if (localWorkspace && resourceId && !detail)
+    return <Skeleton lines={5} label="Abriendo tu práctica…" />;
+
   return (
     <section
       className="resources-panel"
@@ -130,9 +134,11 @@ export function ResourcesPanel({
           <span className="eyebrow">ESTUDIA A TU MANERA</span>
           <h2 id="resources-title">Recursos para estudiar</h2>
         </div>
-        <button className="primary" onClick={onCreate}>
-          + Crear un recurso
-        </button>
+        {!localWorkspace && (
+          <button className="primary" onClick={onCreate}>
+            + Crear un recurso
+          </button>
+        )}
       </div>
       {error && (
         <p role="alert" className="form-error">
@@ -186,7 +192,9 @@ export function ResourcesPanel({
           </ArtImage>
           <h3>Todavía no tienes recursos.</h3>
           <p>
-            Crea un resumen, tarjetas o un cuestionario a partir de tus apuntes.
+            {localWorkspace
+              ? "Aquí aparecerán los materiales de práctica de esta materia."
+              : "Crea un resumen, tarjetas o un cuestionario a partir de tus apuntes."}
           </p>
         </div>
       )}

@@ -21,7 +21,7 @@ Vercel toma `main` de [EduCloud-MVP](https://github.com/CarLos4475/EduCloud-MVP)
 
 `DEEPSEEK_API_KEY` está guardada como secreto de producción. `EDUCLOUD_TUTOR_ENABLED=1` habilita el tutor en ese entorno. Vercel Firewall permite hasta ocho solicitudes al tutor por minuto por IP. Si configuras otro entorno, aplica su límite antes de habilitar la función. Mantén `.env` fuera del repositorio.
 
-Después de publicar un cambio, abre el enlace en incógnito y recorre el flujo completo. Crea un espacio, abre el calendario, adjunta un archivo y pregunta sobre la ley de Ohm. Abre la cita y contesta la práctica. El resultado debe aparecer en «Tu progreso».
+Después de publicar un cambio, abre el enlace en incógnito y crea un espacio. Abre el calendario y vuelve a Inicio. Entra por «Ver apuntes de Circuitos eléctricos», registra un archivo y elige «Preguntar al tutor». Abre la cita de la ley de Ohm, cierra el tutor y elige «Practicar». Al terminar, usa «Ver tu progreso» para consultar el resultado.
 
 La API acepta preguntas breves por POST JSON desde el origen de la aplicación, con máximo 4 KiB de entrada y de 350 a 700 tokens según la extensión de respuesta. Limita el tiempo de la llamada y comprueba que el fragmento citado exista en el apunte. La función recibe la pregunta y opciones del tutor. El navegador guarda el historial y ofrece borrarlo. La comprobación del origen y el límite de solicitudes del Firewall son controles distintos.
 

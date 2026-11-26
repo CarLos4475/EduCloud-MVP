@@ -3,6 +3,7 @@ import { api, authorizedFetch, studyRows, Row } from "../../api";
 import { Skeleton } from "../../components/Skeleton";
 import { ArtImage } from "../../components/Icons";
 import { attachLocalFile, localWorkspace } from "../../mvp/workspace";
+import { exampleNoteId } from "../../mvp/fixtures";
 
 export type SourceRef = {
   materialId: string;
@@ -176,12 +177,17 @@ export function MaterialsPanel({
   subjectId,
   topics,
   onTopicsChanged,
+  onAsk,
+  onPractice,
 }: {
   subjectId: string;
   topics: Row[];
   onTopicsChanged: () => void;
+  onAsk?: () => void;
+  onPractice?: () => void;
 }) {
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [loading, setLoading] = useState(true);
   const [current, setCurrent] = useState<Material | null>(null);
   const [page, setPage] = useState("block-1");
   const [text, setText] = useState("");
@@ -198,6 +204,7 @@ export function MaterialsPanel({
   useEffect(() => {
     let active = true,
       running = false;
+    setLoading(true);
     const load = async () => {
       if (running) return;
       running = true;
@@ -210,6 +217,7 @@ export function MaterialsPanel({
         if (active) setError((e as Error).message);
       } finally {
         running = false;
+        if (active) setLoading(false);
       }
     };
     void load();
@@ -309,7 +317,7 @@ export function MaterialsPanel({
         attachLocalFile(subjectId, file, displayName);
         setNote("");
         setNoteTitle("");
-        setNotice("Adjuntaste el archivo. Para preguntar al tutor, elige un apunte listo para estudiar.");
+        setNotice("Archivo registrado.");
         await refresh();
         return;
       }
@@ -390,75 +398,90 @@ export function MaterialsPanel({
       );
     });
   }
+  const uploadField = (
+    <label className="upload-drop">
+      {localWorkspace ? "Adjuntar material" : "Subir material"}
+      <input
+        aria-label={localWorkspace ? "Adjuntar material" : "Subir material"}
+        type="file"
+        accept=".pdf,.pptx,.txt,.md,.png,.jpg,.jpeg,.webp"
+        disabled={busy}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void upload(file);
+          e.target.value = "";
+        }}
+      />
+      <small>
+        {localWorkspace
+          ? "PDF, presentaciones e imágenes"
+          : "Hasta 20 MiB por documento; 10 MiB por imagen."}
+      </small>
+    </label>
+  );
   return (
     <section className="materials-panel" aria-label="Biblioteca de estudio">
       <div className="section-heading">
-        <h2>Tu biblioteca de estudio</h2>
-        <span className="eyebrow">TUS APUNTES PRIMERO</span>
+        <h2>{localWorkspace ? "Tus apuntes" : "Tu biblioteca de estudio"}</h2>
+        {!localWorkspace && (
+          <span className="eyebrow">TUS APUNTES PRIMERO</span>
+        )}
       </div>
-      <p>
-        {localWorkspace
-          ? "Adjunta un PDF, una presentación o una imagen. Para usar el tutor, elige un apunte listo para estudiar."
-          : "PDF, presentaciones, imágenes y notas. Las transcripciones dudosas necesitan tu revisión antes de usarse con el tutor."}
-      </p>
+      {!localWorkspace && (
+        <p>
+          PDF, presentaciones, imágenes y notas. Las transcripciones dudosas
+          necesitan tu revisión antes de usarse con el tutor.
+        </p>
+      )}
       {error && (
         <p role="alert" className="error-banner">
           {error}
         </p>
       )}
       {notice && <p role="status">{notice}</p>}
-      <div className="material-upload-grid">
-        <label className="upload-drop">
-          {localWorkspace ? "Adjuntar material" : "Subir material"}
-          <input
-            aria-label={localWorkspace ? "Adjuntar material" : "Subir material"}
-            type="file"
-            accept=".pdf,.pptx,.txt,.md,.png,.jpg,.jpeg,.webp"
-            disabled={busy}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void upload(file);
-              e.target.value = "";
+      {!localWorkspace && (
+        <div className="material-upload-grid">
+          {uploadField}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void upload(
+                new File([note], `${noteTitle.trim() || "Nota"}.txt`, {
+                  type: "text/plain",
+                }),
+                noteTitle.trim(),
+              );
             }}
-          />
-          <small>Hasta 20 MiB por documento; 10 MiB por imagen.</small>
-        </label>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void upload(
-              new File([note], `${noteTitle.trim() || "Nota"}.txt`, {
-                type: "text/plain",
-              }),
-              noteTitle.trim(),
-            );
-          }}
-        >
-          <label>
-            Título de la nota
-            <input
-              value={noteTitle}
-              onChange={(e) => setNoteTitle(e.target.value)}
-              maxLength={160}
-              required
-            />
-          </label>
-          <label>
-            Contenido de la nota
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={3}
-              maxLength={50000}
-              required
-            />
-          </label>
-          <button className="primary" disabled={busy}>
-            {busy ? "Guardando…" : "Guardar nota"}
-          </button>
-        </form>
-      </div>
+          >
+            <label>
+              Título de la nota
+              <input
+                value={noteTitle}
+                onChange={(e) => setNoteTitle(e.target.value)}
+                maxLength={160}
+                required
+              />
+            </label>
+            <label>
+              Contenido de la nota
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={3}
+                maxLength={50000}
+                required
+              />
+            </label>
+            <button className="primary" disabled={busy}>
+              {busy ? "Guardando…" : "Guardar nota"}
+            </button>
+          </form>
+        </div>
+      )}
       <div className="material-list">
+        {localWorkspace && loading && (
+          <Skeleton lines={3} label="Cargando tus apuntes…" />
+        )}
         {materials.map((m) => (
           <article className="material-card" key={m.id}>
             <div>
@@ -467,27 +490,57 @@ export function MaterialsPanel({
                 {m.status === "failed" && m.error === "processing_canceled"
                   ? "Cancelado"
                   : labels[m.status] || "Procesando"}
-                {m.status === "local" && typeof m.size === "number" &&
-                  " · " + new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 }).format(m.size / 1024) + " KB"}
+                {m.status === "local" &&
+                  typeof m.size === "number" &&
+                  " · " +
+                    new Intl.NumberFormat("es-MX", {
+                      maximumFractionDigits: 2,
+                    }).format(m.size / 1024) +
+                    " KB"}
               </p>
             </div>
-            {m.status !== "local" && <button
-              className="secondary"
-              onClick={() => void open(m)}
-              disabled={busy}
-            >
-              Abrir material
-            </button>}
+            {m.status !== "local" && (
+              <div className={localWorkspace ? "button-row" : undefined}>
+                {onAsk && m.status === "ready" && (
+                  <button className="primary" onClick={onAsk}>
+                    Preguntar al tutor
+                  </button>
+                )}
+                {onPractice && m.id === exampleNoteId && (
+                  <button className="secondary" onClick={onPractice}>
+                    Practicar
+                  </button>
+                )}
+                <button
+                  className={localWorkspace ? "text-button" : "secondary"}
+                  onClick={() => void open(m)}
+                  disabled={busy}
+                >
+                  Abrir material
+                </button>
+              </div>
+            )}
           </article>
         ))}
       </div>
-      {!materials.length && (
+      {!materials.length && (!localWorkspace || !loading) && (
         <div className="quiet-panel empty-materials">
           <ArtImage src="/art/empty-subject-notes.png" className="empty-art">
             {null}
           </ArtImage>
           <p>
-            Todavía no hay apuntes. Guarda una nota o sube tu primer documento.
+            {localWorkspace
+              ? "Todavía no hay apuntes. Adjunta tu primer archivo."
+              : "Todavía no hay apuntes. Guarda una nota o sube tu primer documento."}
+          </p>
+        </div>
+      )}
+      {localWorkspace && (
+        <div className="mvp-upload">
+          {uploadField}
+          <p className="quiet">
+            El nombre del archivo se guarda en este navegador. El tutor consulta
+            los apuntes listos.
           </p>
         </div>
       )}

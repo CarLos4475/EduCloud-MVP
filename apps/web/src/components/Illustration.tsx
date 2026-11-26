@@ -139,9 +139,10 @@ function IllustrationSvg({ id }: { id: string }) {
 
 /** Usa la ilustración de /art/subjects si existe; si no, el dibujo vectorial. */
 export function Illustration({ id }: { id: string }) {
+  const key = id === "physics" ? "circuit" : id;
   return (
-    <ArtImage src={`/art/subjects/${id}.png`} className="illustration">
-      <IllustrationSvg id={id} />
+    <ArtImage src={`/art/subjects/${key}.png`} className="illustration">
+      <IllustrationSvg id={key} />
     </ArtImage>
   );
 }

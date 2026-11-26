@@ -8,6 +8,7 @@ import type {
 
 export const subjectId = "circuitos";
 export const exampleNoteId = "ley-de-ohm";
+export const exampleQuizId = "practica-ohm";
 export const noteBlock = {
   materialId: exampleNoteId,
   extractionVersion: "apunte-1",
@@ -143,7 +144,7 @@ export function seedWorkspace() {
         revision: 1,
         name: "Circuitos eléctricos",
         periodId: "semestre",
-        illustrationId: "physics",
+        illustrationId: "circuit",
         color: "blue",
         archived: false,
       },
@@ -194,7 +195,7 @@ export function seedWorkspace() {
     materials: [sampleNote] as Row[],
     resources: [
       sampleResource(
-        "practica-ohm",
+        exampleQuizId,
         "quiz",
         subjectId,
         "Práctica de la ley de Ohm",

@@ -16,10 +16,23 @@ test("el espacio local conserva el calendario y permite consultar el apunte con 
         },
       }),
     );
-  await page.goto("http://127.0.0.1:5173");
+  const baseUrl = process.env.EDUCLOUD_MVP_URL ?? "http://127.0.0.1:5173";
+  await page.goto(baseUrl);
   await page.getByRole("button", { name: "Crear mi espacio" }).click();
   await page.getByLabel("Tu nombre").fill("Alex");
   await page.getByRole("button", { name: "Guardar mi espacio" }).click();
+  const navigation = page.getByRole("navigation", {
+    name: "Navegación principal",
+  });
+  await expect(navigation.getByRole("button")).toHaveText([
+    "Inicio",
+    "Materias",
+    "Calendario",
+  ]);
+  await expect(
+    page.getByRole("button", { name: "Ver apuntes de Circuitos eléctricos" }),
+  ).toBeVisible();
+  await expect(page.getByText(/pasaporte/i)).toHaveCount(0);
   await page
     .getByRole("button", { name: "Calendario", exact: true })
     .first()
@@ -27,7 +40,14 @@ test("el espacio local conserva el calendario y permite consultar el apunte con 
   await expect(page).toHaveURL(/\/calendario$/);
   await page.reload();
   await expect(page.getByText("Repasar la ley de Ohm").first()).toBeVisible();
-  await page.goto("http://127.0.0.1:5173/materias/circuitos/apuntes");
+  await navigation.getByRole("button", { name: "Inicio" }).click();
+  await page
+    .getByRole("button", { name: "Ver apuntes de Circuitos eléctricos" })
+    .click();
+  await expect(page).toHaveURL(/\/materias\/circuitos\/apuntes$/);
+  await expect(page.getByRole("button", { name: "Guardar nota" })).toHaveCount(
+    0,
+  );
   await page.getByLabel("Adjuntar material").setInputFiles({
     name: "mis-apuntes.pdf",
     mimeType: "application/pdf",
@@ -36,7 +56,19 @@ test("el espacio local conserva el calendario y permite consultar el apunte con 
   await expect(
     page.getByText("mis-apuntes.pdf", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: /Abrir tutor/ }).click();
+  await page
+    .getByRole("button", { name: "Preguntar al tutor", exact: true })
+    .click();
+  await expect(
+    page.locator("details", { hasText: "Opciones del tutor" }),
+  ).not.toHaveAttribute("open");
+  await expect(page.getByText(/Apunte activo:.*Ley de Ohm/i)).toBeVisible();
+  const tutorOptions = page.getByText("Opciones del tutor", { exact: true });
+  await tutorOptions.click();
+  await expect(
+    page.getByRole("checkbox", { name: "Autorizar conocimiento general solo para esta pregunta" }),
+  ).not.toBeChecked();
+  await tutorOptions.click();
   await page
     .getByLabel("Tu pregunta")
     .fill("¿Qué pasa si aumenta la resistencia?");
@@ -46,12 +78,15 @@ test("el espacio local conserva el calendario y permite consultar el apunte con 
     page.getByRole("dialog", { name: "Fuente citada" }),
   ).toContainText("voltaje permanece fijo");
   await page.getByRole("button", { name: "Cerrar fuente" }).click();
-  await page.goto(
-    "http://127.0.0.1:5173/materias/circuitos/recursos/practica-ohm",
+  await page.getByRole("button", { name: "Cerrar tutor" }).click();
+  await page.getByRole("button", { name: "Practicar", exact: true }).click();
+  await expect(page).toHaveURL(
+    /\/materias\/circuitos\/recursos\/practica-ohm$/,
   );
   await page.getByRole("button", { name: "2 A", exact: true }).click();
   await page.getByRole("button", { name: "Ver mi resultado" }).click();
   await expect(page.getByText(/Acertaste 1 de 1/)).toBeVisible();
-  await page.getByRole("button", { name: /Volver a mis recursos/ }).click();
+  await page.getByRole("button", { name: "Ver tu progreso" }).click();
+  await expect(page.getByRole("heading", { name: "Tu progreso" })).toBeInViewport();
   await expect(page.getByText("100%", { exact: true })).toBeVisible();
 });
