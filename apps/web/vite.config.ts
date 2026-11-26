@@ -36,8 +36,12 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       input:
         mode === "mvp"
-          ? { app: "index.html" }
-          : { app: "index.html", laboratorio: "h0.html" },
+          ? { app: "index.html", pitch: "pitch/index.html" }
+          : {
+              app: "index.html",
+              laboratorio: "h0.html",
+              pitch: "pitch/index.html",
+            },
     },
   },
   plugins:

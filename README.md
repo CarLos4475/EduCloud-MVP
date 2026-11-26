@@ -37,4 +37,4 @@ La versión que se puede abrir hoy está en Vercel. Para una versión con cuenta
 
 En un piloto con estudiantes de Acatlán, les pediríamos localizar un apunte, aclarar una duda y guardar una práctica. Compararíamos cuánto tardan con EduCloud y con las herramientas que ya usan. También revisaríamos si pueden encontrar el fragmento que respalda la respuesta del tutor.
 
-[Primera entrega del proyecto](docs/academico/primera-entrega/educloud-primera-entrega.pdf) · [Guía de desarrollo local](docs/runbooks/desarrollo-local.md)
+[Presentación](https://educloud-mvp.vercel.app/pitch) · [Primera entrega del proyecto](docs/academico/primera-entrega/educloud-primera-entrega.pdf) · [Guía de desarrollo local](docs/runbooks/desarrollo-local.md)

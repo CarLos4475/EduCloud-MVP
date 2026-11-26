@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="es-MX">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#122245" />
+    <title>EduCloud · Presentación</title>
+    <meta
+      name="description"
+      content="EduCloud, un espacio para estudiar con tus apuntes. Proyecto de Cómputo en la Nube, FES Acatlán."
+    />
+    <link rel="icon" type="image/png" href="/art/logo.png" />
+    <script type="module" src="./slides.js"></script>
+  </head>
+  <body>
+    <div class="deck-viewport">
+      <main
+        class="deck-stage"
+        id="deck-stage"
+        aria-label="Presentación de EduCloud"
+      >
+        <!-- 0:00–0:20 · Persona 1. Qué es EduCloud y a quién va dirigido. -->
+        <section
+          class="slide cover active"
+          aria-labelledby="cover-title"
+          data-slide="inicio"
+        >
+          <div class="cover-type">
+            <div class="brand reveal">
+              <img src="/art/logo.png" alt="" width="74" height="74" />
+              <span>EduCloud</span>
+            </div>
+            <h1 class="reveal" id="cover-title">
+              <span data-copy>Estudia con</span
+              ><span class="gold-ink" data-copy>tus apuntes.</span>
+            </h1>
+            <p class="lead reveal" data-copy>
+              Para universitarios de ciencias e ingeniería.
+            </p>
+          </div>
+          <div class="cover-art reveal" aria-hidden="true">
+            <div class="cover-ring"></div>
+            <img src="/art/login-hero.png" alt="" fetchpriority="high" />
+            <i class="art-star star-one">✦</i>
+            <i class="art-star star-two">✧</i>
+          </div>
+        </section>
+
+        <!-- 0:20–0:50 · Persona 1. Ejemplo: los apuntes y una duda se pierden entre herramientas. -->
+        <section
+          class="slide problem"
+          aria-labelledby="problem-title"
+          data-slide="problema"
+        >
+          <h2 id="problem-title" class="reveal" data-copy>
+            Todo por separado.
+          </h2>
+          <p class="lead reveal" data-copy>
+            Cuando vuelves a un tema, toca buscar todo otra vez.
+          </p>
+          <div class="problem-cards">
+            <article class="paper-card reveal note-card">
+              <img src="/art/icons/tab-notes.png" alt="" />
+              <h3 data-copy>Apuntes</h3>
+            </article>
+            <article class="paper-card reveal question-card">
+              <img src="/art/empty-search.png" alt="" />
+              <h3 data-copy>Dudas</h3>
+            </article>
+            <article class="paper-card reveal tasks-card">
+              <img src="/art/icons/nav-calendar.png" alt="" />
+              <h3 data-copy>Pendientes</h3>
+            </article>
+          </div>
+        </section>
+
+        <!-- 0:50–2:30 · Persona 1. Tener una sesión lista. Circuitos → tutor → cita → práctica → progreso. -->
+        <section
+          class="slide demo"
+          aria-labelledby="demo-title"
+          data-slide="mvp"
+        >
+          <h2 class="reveal" id="demo-title" data-copy>
+            De la duda al repaso.
+          </h2>
+          <p class="lead reveal" data-copy>Circuitos eléctricos · Ley de Ohm</p>
+          <ol class="demo-flow">
+            <li class="flow-card reveal">
+              <img src="/art/icons/tab-notes.png" alt="" />
+              <span data-copy>Abre el apunte</span>
+            </li>
+            <li class="flow-card reveal">
+              <img src="/art/tutor-avatar.png" alt="" />
+              <span data-copy>Pregunta y abre la cita</span>
+            </li>
+            <li class="flow-card reveal">
+              <img src="/art/kinds/quiz.png" alt="" />
+              <span data-copy>Resuelve la práctica</span>
+            </li>
+            <li class="flow-card reveal">
+              <img src="/art/continue-hero.png" alt="" />
+              <span data-copy>Revisa tu avance</span>
+            </li>
+          </ol>
+          <a
+            class="demo-link reveal"
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span>Abrir EduCloud</span><span aria-hidden="true">↗</span>
+          </a>
+        </section>
+
+        <!-- 2:30–3:15 · Persona 2. El tutor funciona. El modelo de recomendaciones se propone para después. -->
+        <section
+          class="slide data-slide"
+          aria-labelledby="data-title"
+          data-slide="datos"
+        >
+          <h2 class="reveal" id="data-title" data-copy>
+            ¿Qué conviene repasar?
+          </h2>
+          <div class="data-grid">
+            <article class="data-card reveal">
+              <span class="category" data-copy>Datos</span>
+              <img src="/art/kinds/interactive-graph.png" alt="" />
+              <h3 data-copy>Intentos y aciertos</h3>
+            </article>
+            <article class="data-card reveal">
+              <span class="category" data-copy>IA</span>
+              <img src="/art/tutor-empty.png" alt="" />
+              <h3 data-copy>Explica y cita el apunte</h3>
+            </article>
+            <article class="data-card proposed reveal">
+              <span class="category" data-copy>ML propuesto</span>
+              <img src="/art/subjects/nodes.png" alt="" />
+              <h3 data-copy>Sugerir qué tema repasar</h3>
+            </article>
+          </div>
+        </section>
+
+        <!-- 3:15–4:10 · Persona 2. El MVP está en Vercel. Explicar el flujo propuesto con los servicios de Google Cloud. -->
+        <section
+          class="slide cloud"
+          aria-labelledby="cloud-title"
+          data-slide="nube"
+        >
+          <h2 class="reveal" id="cloud-title" data-copy>
+            La nube que proponemos.
+          </h2>
+          <p class="lead reveal" data-copy>Google Cloud</p>
+          <div class="cloud-flow">
+            <div class="cloud-column reveal">
+              <div class="service entry">
+                <strong data-copy>Firebase</strong>
+                <span data-copy>Web y acceso</span>
+              </div>
+              <div class="line-down" aria-hidden="true"></div>
+              <div class="service primary-service">
+                <strong data-copy>Cloud Run</strong>
+                <span data-copy>Atiende la app</span>
+              </div>
+            </div>
+            <div class="cloud-connector reveal" aria-hidden="true">→</div>
+            <div class="cloud-column middle reveal">
+              <div class="service">
+                <strong data-copy>Cloud Tasks</strong>
+                <span data-copy>Pone archivos en fila</span>
+              </div>
+              <div class="service">
+                <strong data-copy>Cloud Storage</strong>
+                <span data-copy>Guarda los apuntes</span>
+              </div>
+              <div class="service">
+                <strong data-copy>Firestore</strong>
+                <span data-copy>Guarda materias y avance</span>
+              </div>
+            </div>
+            <div class="cloud-connector reveal" aria-hidden="true">→</div>
+            <div class="cloud-column reveal">
+              <div class="service analytics">
+                <strong data-copy>BigQuery</strong>
+                <span data-copy>Analiza la práctica</span>
+                <small data-copy>BigQuery ML · recomendaciones</small>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4:10–4:35 · Persona 2. Comparar tiempo y facilidad para abrir la cita en un piloto. Quedan 25 s de margen. -->
+        <section
+          class="slide closing"
+          aria-labelledby="closing-title"
+          data-slide="impacto"
+        >
+          <div class="closing-copy">
+            <p class="pilot reveal" data-copy>Piloto propuesto en Acatlán</p>
+            <h2 class="reveal" id="closing-title">
+              <span data-copy>¿Nos ayuda</span
+              ><span data-copy>a estudiar?</span>
+            </h2>
+            <div class="metrics">
+              <div class="metric reveal" data-copy>
+                Tiempo para aclarar una duda
+              </div>
+              <div class="metric reveal" data-copy>
+                Facilidad para encontrar la fuente
+              </div>
+            </div>
+          </div>
+          <div class="closing-art reveal" aria-hidden="true">
+            <img src="/art/continue-hero.png" alt="" />
+            <i class="art-star">✦</i>
+          </div>
+        </section>
+      </main>
+    </div>
+    <nav class="deck-controls" aria-label="Controles de la presentación">
+      <button
+        type="button"
+        id="previous"
+        aria-label="Diapositiva anterior"
+        title="Anterior (←)"
+      >
+        ←
+      </button>
+      <button
+        type="button"
+        id="next"
+        aria-label="Siguiente diapositiva"
+        title="Siguiente (→)"
+      >
+        →
+      </button>
+      <button
+        type="button"
+        id="fullscreen"
+        aria-label="Pantalla completa"
+        title="Pantalla completa (F)"
+      >
+        ⛶
+      </button>
+    </nav>
+    <div class="edit-toolbar" id="edit-toolbar" hidden>
+      <span>Edición local</span>
+      <button type="button" id="save-edits">Guardar</button>
+      <button type="button" id="close-edits">Cerrar</button>
+    </div>
+    <p id="deck-status" class="sr-only" role="status" aria-live="polite"></p>
+  </body>
+</html>

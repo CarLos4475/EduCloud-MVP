@@ -24,6 +24,7 @@
     }
   ],
   "rewrites": [
+    { "source": "/pitch", "destination": "/pitch/index.html" },
     { "source": "/materias/:path*", "destination": "/index.html" },
     { "source": "/biblioteca", "destination": "/index.html" },
     { "source": "/calendario/:path*", "destination": "/index.html" },
