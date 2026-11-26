@@ -4,7 +4,7 @@ import { createTutorHandler } from "../apps/web/api/tutor.mjs";
 
 const origin = "https://educloud.example";
 const input = {
-  question: "¿Qué ocurre si aumenta la resistencia?",
+  question: "¿Por qué son dependientes (2, 1) y (4, 2)?",
   source: true,
   allowGeneral: false,
 };
@@ -21,7 +21,10 @@ function choice(quote) {
       {
         finish_reason: "stop",
         message: {
-          content: JSON.stringify({ text: "Disminuye la corriente.", quote }),
+          content: JSON.stringify({
+            text: "El segundo vector es el doble del primero.",
+            quote,
+          }),
         },
       },
     ],
@@ -57,14 +60,14 @@ test("only forwards requests from EduCloud with a bounded question and the tutor
 
 test("the anchored mode returns a citation only for a verbatim fragment", async () => {
   const quote =
-    "Si el voltaje permanece fijo y aumenta la resistencia, la corriente disminuye.";
+    "Si el determinante es cero, los vectores son linealmente dependientes.";
   const requestUpstream = async (url, options) => {
     const payload = JSON.parse(options.body);
     assert.equal(url, "https://api.deepseek.com/chat/completions");
     assert.equal(options.headers.Authorization, "Bearer test");
     assert.equal(payload.messages[1].content, input.question);
     assert.equal(payload.max_tokens, 350);
-    assert.match(payload.messages[0].content, /12 V y 6 Ω/);
+    assert.match(payload.messages[0].content, /determinante/);
     return choice(quote);
   };
   const tutor = createTutorHandler({
@@ -73,7 +76,7 @@ test("the anchored mode returns a citation only for a verbatim fragment", async 
     requestUpstream,
   });
   assert.deepEqual(await (await tutor(request())).json(), {
-    text: "Disminuye la corriente.",
+    text: "El segundo vector es el doble del primero.",
     cited: true,
     quote,
     needsConsent: false,
@@ -90,19 +93,19 @@ test("the anchored mode returns a citation only for a verbatim fragment", async 
   });
 });
 
-test("a one-click request generates a bounded Ohm challenge from the fixed note", async () => {
+test("a one-click request generates a bounded vector challenge from the fixed note", async () => {
   const resource = {
-    title: "Un motor en el taller",
-    scenario: "Ajusta la corriente que recibe un motor de prueba.",
-    voltage: 12,
-    targetResistance: 4,
+    title: "Dos direcciones",
+    scenario: "Cambia la dirección de un vector para cubrir el área pedida.",
+    slope: 1,
+    targetY: 4,
   };
   const tutor = createTutorHandler({
     enabled: true,
     key: "test",
     requestUpstream: async (_url, options) => {
       const { messages, max_tokens: maxTokens } = JSON.parse(options.body);
-      assert.match(messages[0].content, /I = V \/ R/);
+      assert.match(messages[0].content, /determinante/);
       assert.equal(maxTokens, 250);
       return Response.json({
         choices: [
@@ -114,7 +117,7 @@ test("a one-click request generates a bounded Ohm challenge from the fixed note"
       });
     },
   });
-  const body = { action: "create-ohm-challenge" };
+  const body = { action: "create-vector-challenge" };
   assert.equal(
     (await tutor(request({ ...body, prompt: "un prompt" }))).status,
     422,
@@ -122,6 +125,6 @@ test("a one-click request generates a bounded Ohm challenge from the fixed note"
   const response = await tutor(request(body));
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), resource);
-  resource.targetResistance = 0;
+  resource.targetY = 2;
   assert.equal((await tutor(request(body))).status, 502);
 });

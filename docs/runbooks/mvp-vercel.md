@@ -1,6 +1,6 @@
 # EduCloud para revisión en Vercel
 
-Abre [EduCloud en Vercel](https://educloud-mvp.vercel.app) y elige «Crear mi espacio». Basta con un nombre. El calendario y el avance se guardan en ese navegador. Al elegir un archivo, la aplicación guarda su nombre y tamaño. El tutor responde con DeepSeek y puede citar el apunte «Ley de Ohm», que viene con el espacio. La práctica, las tarjetas y el resumen están disponibles desde el inicio. En Recursos de Circuitos eléctricos, «Crear recurso» genera un reto interactivo con DeepSeek y lo guarda en el navegador.
+Abre [EduCloud en Vercel](https://educloud-mvp.vercel.app) y elige «Crear mi espacio». Basta con un nombre. El calendario y el avance se guardan en ese navegador. Al elegir un archivo, la aplicación guarda su nombre y tamaño. El tutor responde con DeepSeek y puede citar el apunte «Independencia lineal», que viene con el espacio. La práctica, las tarjetas y el resumen están disponibles desde el inicio. En Recursos de Álgebra lineal, «Crear recurso» genera un reto de vectores con DeepSeek y lo guarda en el navegador. Los espacios existentes reciben el ejemplo nuevo y conservan el anterior en Materias archivadas.
 
 ## Prueba local
 
@@ -21,7 +21,7 @@ Vercel toma `main` de [EduCloud-MVP](https://github.com/CarLos4475/EduCloud-MVP)
 
 `DEEPSEEK_API_KEY` está guardada como secreto de producción. `EDUCLOUD_TUTOR_ENABLED=1` habilita el tutor en ese entorno. Vercel Firewall permite hasta ocho solicitudes al tutor por minuto por IP. Si configuras otro entorno, aplica su límite antes de habilitar la función. Mantén `.env` fuera del repositorio.
 
-Después de publicar un cambio, abre el enlace en incógnito y crea un espacio. Abre el calendario y vuelve a Inicio. Entra por «Ver apuntes de Circuitos eléctricos», registra un archivo y elige «Preguntar al tutor». Abre la cita de la ley de Ohm, cierra el tutor y elige «Practicar». Al terminar, usa «Ver tu progreso» para consultar el resultado.
+Después de publicar un cambio, abre el enlace en incógnito y crea un espacio. Abre el calendario y vuelve a Inicio. Entra por «Ver apuntes de Álgebra lineal», registra un archivo y elige «Preguntar al tutor». Abre la cita sobre independencia lineal, cierra el tutor y elige «Practicar». Abre «Ver tu progreso» y crea un reto. Mueve el vector hasta alcanzar el determinante objetivo.
 
 La API acepta preguntas breves por POST JSON desde el origen de la aplicación, con máximo 4 KiB de entrada y de 350 a 700 tokens según la extensión de respuesta. Limita el tiempo de la llamada y comprueba que el fragmento citado exista en el apunte. La generación del reto usa la misma ruta y su límite de solicitudes. Envía solo una instrucción fija y el apunte de ejemplo. El servidor valida el texto y los valores del reto. La aplicación calcula la corriente y dibuja la simulación con sus componentes.
 

@@ -5,7 +5,7 @@
   "outputDirectory": "dist",
   "functions": {
     "api/tutor.mjs": {
-      "includeFiles": "shared/ohm.json",
+      "includeFiles": "shared/linear-algebra.json",
       "maxDuration": 25
     }
   },

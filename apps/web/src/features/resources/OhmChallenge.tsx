@@ -1,5 +1,6 @@
 import { useState } from "react";
-import type { OhmChallenge as Challenge } from "../../mvp/fixtures";
+
+type Challenge = { scenario: string; voltage: number; targetResistance: number };
 
 const amperes = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 });
 
@@ -11,7 +12,7 @@ export function OhmChallenge({ challenge }: { challenge: Challenge }) {
   const reached = resistance === targetResistance;
 
   return (
-    <section className="ohm-challenge" aria-label="Simulación de la ley de Ohm">
+    <section className="study-challenge" aria-label="Simulación de la ley de Ohm">
       <div className="ohm-circuit">
         <p className="ohm-voltage">
           Voltaje fijo · <strong>{voltage} V</strong>
@@ -32,7 +33,7 @@ export function OhmChallenge({ challenge }: { challenge: Challenge }) {
           </output>
         </div>
       </div>
-      <div className="ohm-controls">
+      <div className="challenge-controls">
         <p>{scenario}</p>
         <p>
           Ajusta la resistencia hasta llegar a{" "}
@@ -45,7 +46,7 @@ export function OhmChallenge({ challenge }: { challenge: Challenge }) {
           </strong>
           .
         </p>
-        <div className="ohm-control-label">
+        <div className="challenge-control-label">
           <label htmlFor="ohm-resistance">Resistencia</label>
           <span aria-hidden="true">{resistance} Ω</span>
         </div>
@@ -59,7 +60,7 @@ export function OhmChallenge({ challenge }: { challenge: Challenge }) {
           aria-valuetext={`${resistance} ohmios`}
           onChange={(event) => setResistance(event.target.valueAsNumber)}
         />
-        <div className="ohm-equation" role="status">
+        <div className="challenge-equation" role="status">
           {reached && <strong>¡Meta alcanzada!</strong>}
           <span>
             I = V / R · {voltage} V / {resistance} Ω

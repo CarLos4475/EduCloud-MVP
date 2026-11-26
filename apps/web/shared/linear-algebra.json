@@ -1,0 +1,4 @@
+{
+  "title": "Independencia lineal",
+  "text": "Dos vectores en el plano son linealmente dependientes si se alinean en la misma recta que pasa por el origen. Para u = (a, b) y v = (c, d), el determinante es ad − bc. Si el determinante es cero, los vectores son linealmente dependientes. Si el determinante es distinto de cero, son linealmente independientes y forman un paralelogramo cuya área es el valor absoluto del determinante. Por ejemplo, u = (2, 1) y v = (4, 2) son dependientes porque v = 2u y el determinante es cero."
+}

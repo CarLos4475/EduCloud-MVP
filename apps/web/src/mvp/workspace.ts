@@ -3,12 +3,13 @@ import type { Kind } from "../features/resources/types";
 import {
   canDeleteLocalResource,
   exampleNoteId,
+  legacySubjectId,
   noteBlock,
-  ohmResource,
+  vectorResource,
   sampleResource,
   seedWorkspace,
   subjectId,
-  type OhmChallenge,
+  type VectorChallenge,
 } from "./fixtures";
 
 export const localWorkspace = import.meta.env.VITE_EDUCLOUD_MVP === "true";
@@ -19,6 +20,39 @@ const change = "educloud:local-session";
 let memorySession = false;
 type WorkspaceState = ReturnType<typeof seedWorkspace>;
 let state: WorkspaceState | undefined;
+
+function migrateExample(workspace: WorkspaceState) {
+  const example = seedWorkspace();
+  if (workspace.exampleEdition === example.exampleEdition) return;
+  const legacySubject = workspace.lists.subjects.find(
+    (item) => item.id === legacySubjectId,
+  );
+  if (legacySubject) {
+    legacySubject.archived = true;
+    // Replace only the unedited calendar entries shipped with the old example.
+    for (const [collection, id] of [
+      ["agenda", "repaso"],
+      ["schedule", "clase"],
+    ]) {
+      workspace.lists[collection] = workspace.lists[collection].filter(
+        (item) =>
+          item.id !== id ||
+          item.subjectId !== legacySubjectId ||
+          item.revision !== 1,
+      );
+    }
+  }
+  for (const [collection, rows] of Object.entries(example.lists)) {
+    const existing = workspace.lists[collection];
+    existing.push(
+      ...rows.filter((item) => !existing.some((row) => row.id === item.id)),
+    );
+  }
+  workspace.materials.push(...example.materials);
+  workspace.resources.push(...example.resources);
+  workspace.exampleEdition = example.exampleEdition;
+  persist();
+}
 
 function readState() {
   if (state) return state;
@@ -32,6 +66,7 @@ function readState() {
         Array.isArray(parsed.resources)
       ) {
         state = parsed;
+        migrateExample(state);
         return state;
       }
     }
@@ -54,6 +89,12 @@ function clearResourceHistory(db: WorkspaceState, versions: Set<string>) {
     (attempt) => !versions.has(attempt.versionId),
   );
   for (const version of versions) delete db.reviews[version];
+}
+
+function localNoteBlock(material: Row | undefined) {
+  return material?.status === "ready"
+    ? (material.blocks as (typeof noteBlock)[] | undefined)?.[0]
+    : undefined;
 }
 export function hasLocalSession() {
   try {
@@ -152,7 +193,7 @@ async function askTutor(
     )
   )
     return unavailable(
-      "El tutor puede consultar el apunte Ley de Ohm. Los archivos adjuntos se quedan en este navegador.",
+      "El tutor puede consultar el apunte Independencia lineal. Los archivos adjuntos se quedan en este navegador.",
     );
   const allowGeneral =
     payload.allowGeneralForTurn === true || thread.sourceMode === "general";
@@ -247,7 +288,7 @@ function getProgress(target: string) {
               recent.length && recent.at(-1)! >= 85
                 ? "¡Buen trabajo! Repasa tus tarjetas o vuelve a consultar el apunte."
                 : recent.length
-                  ? "Repasa cómo se relacionan voltaje, corriente y resistencia."
+                  ? "Repasa cuándo dos vectores forman un paralelogramo."
                   : "Prueba el cuestionario para ver cómo vas.",
             resourceId: quiz.id,
           },
@@ -406,25 +447,28 @@ export async function localRequest(
   if (area === "materials") {
     const material = db.materials.find((r) => r.id === id);
     if (!material) return missing();
-    if (action === "original" && id === exampleNoteId)
-      return new Response(noteBlock.text, {
+    const block = localNoteBlock(material);
+    if (action === "original" && block)
+      return new Response(block.text, {
         headers: { "Content-Type": "text/plain" },
       });
-    if (action === "transcript" && id === exampleNoteId)
+    if (action === "transcript" && block)
       return unavailable("El apunte de referencia conserva su texto original.");
     if (!action) return json(material);
   }
   if (area === "citations" && id === "resolve" && method === "POST") {
+    const block = localNoteBlock(
+      db.materials.find((m) => m.id === body.materialId),
+    );
     if (
-      !db.materials.some((m) => m.id === exampleNoteId) ||
-      body.materialId !== exampleNoteId ||
-      body.extractionVersion !== noteBlock.extractionVersion ||
-      body.blockId !== noteBlock.blockId ||
-      body.locator !== noteBlock.locator ||
-      (typeof body.quote === "string" && !noteBlock.text.includes(body.quote))
+      !block ||
+      body.extractionVersion !== block.extractionVersion ||
+      body.blockId !== block.blockId ||
+      body.locator !== block.locator ||
+      (typeof body.quote === "string" && !block.text.includes(body.quote))
     )
       return missing();
-    return json(noteBlock);
+    return json(block);
   }
   if (area === "conversations") {
     if (!id && method === "GET")
@@ -457,9 +501,12 @@ export async function localRequest(
     if (!id && method === "POST") {
       if (body.subjectId !== subjectId)
         return unavailable(
-          "Los recursos preparados están disponibles en Circuitos eléctricos.",
+          "Los recursos preparados están disponibles en Álgebra lineal.",
         );
-      if (db.resources.length >= 30) return resourceLimit();
+      const atResourceLimit = () =>
+        db.resources.filter((resource) => resource.subjectId === subjectId)
+          .length >= 30;
+      if (atResourceLimit()) return resourceLimit();
       if (body.kind === "interactive") {
         const hasSource = () =>
           db.lists.subjects.some(
@@ -471,13 +518,13 @@ export async function localRequest(
           );
         if (!hasSource())
           return unavailable(
-            "Abre el apunte de la ley de Ohm para crear el recurso.",
+            "Abre el apunte de la independencia lineal para crear el recurso.",
           );
         const response = await fetch("/api/tutor", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           signal: options.signal,
-          body: JSON.stringify({ action: "create-ohm-challenge" }),
+          body: JSON.stringify({ action: "create-vector-challenge" }),
         });
         if (!response.ok)
           return json(
@@ -489,12 +536,12 @@ export async function localRequest(
             },
             response.status,
           );
-        const challenge: OhmChallenge = await response.json();
+        const challenge: VectorChallenge = await response.json();
         options.signal?.throwIfAborted();
         if (!hasLocalSession() || db !== state || !hasSource())
           return missing();
-        if (db.resources.length >= 30) return resourceLimit();
-        const resource = ohmResource(challenge);
+        if (atResourceLimit()) return resourceLimit();
+        const resource = vectorResource(challenge);
         db.resources.push(resource);
         persist();
         return json(resource, 201);
@@ -503,7 +550,7 @@ export async function localRequest(
         crypto.randomUUID(),
         body.kind as Kind,
         subjectId,
-        "Repaso de la ley de Ohm",
+        "Repaso de la independencia lineal",
       );
       if (!resource)
         return unavailable(

@@ -7,21 +7,22 @@ test("el espacio local conserva el calendario y permite consultar el apunte con 
 }) => {
   if (!process.env.EDUCLOUD_MVP_LIVE)
     await page.route("**/api/tutor", (route) => {
-      if (route.request().postDataJSON()?.action === "create-ohm-challenge")
+      if (route.request().postDataJSON()?.action === "create-vector-challenge")
         return route.fulfill({
           json: {
-            title: "Un motor en el taller",
-            scenario: "Ajusta la corriente que recibe un motor de prueba.",
-            voltage: 12,
-            targetResistance: 4,
+            title: "Dos direcciones",
+            scenario:
+              "Cambia la dirección de un vector para cubrir el área pedida.",
+            slope: 1,
+            targetY: 4,
           },
         });
       return route.fulfill({
         json: {
-          text: "A voltaje constante, una resistencia mayor reduce la corriente.",
+          text: "El segundo vector es el doble del primero.",
           cited: true,
           quote:
-            "Si el voltaje permanece fijo y aumenta la resistencia, la corriente disminuye.",
+            "Si el determinante es cero, los vectores son linealmente dependientes.",
         },
       });
     });
@@ -39,7 +40,7 @@ test("el espacio local conserva el calendario y permite consultar el apunte con 
     "Calendario",
   ]);
   await expect(
-    page.getByRole("button", { name: "Ver apuntes de Circuitos eléctricos" }),
+    page.getByRole("button", { name: "Ver apuntes de Álgebra lineal" }),
   ).toBeVisible();
   await expect(page.getByText(/pasaporte/i)).toHaveCount(0);
   await page
@@ -48,12 +49,14 @@ test("el espacio local conserva el calendario y permite consultar el apunte con 
     .click();
   await expect(page).toHaveURL(/\/calendario$/);
   await page.reload();
-  await expect(page.getByText("Repasar la ley de Ohm").first()).toBeVisible();
+  await expect(
+    page.getByText("Repasar independencia lineal").first(),
+  ).toBeVisible();
   await navigation.getByRole("button", { name: "Inicio" }).click();
   await page
-    .getByRole("button", { name: "Ver apuntes de Circuitos eléctricos" })
+    .getByRole("button", { name: "Ver apuntes de Álgebra lineal" })
     .click();
-  await expect(page).toHaveURL(/\/materias\/circuitos\/apuntes$/);
+  await expect(page).toHaveURL(/\/materias\/algebra-lineal\/apuntes$/);
   await expect(page.getByRole("button", { name: "Guardar nota" })).toHaveCount(
     0,
   );
@@ -71,7 +74,9 @@ test("el espacio local conserva el calendario y permite consultar el apunte con 
   await expect(
     page.locator("details", { hasText: "Opciones del tutor" }),
   ).not.toHaveAttribute("open");
-  await expect(page.getByText(/Apunte activo:.*Ley de Ohm/i)).toBeVisible();
+  await expect(
+    page.getByText(/Apunte activo:.*Independencia lineal/i),
+  ).toBeVisible();
   const tutorOptions = page.getByText("Opciones del tutor", { exact: true });
   await tutorOptions.click();
   await expect(
@@ -82,22 +87,22 @@ test("el espacio local conserva el calendario y permite consultar el apunte con 
   await tutorOptions.click();
   await page
     .getByLabel("Tu pregunta")
-    .fill("¿Qué pasa si aumenta la resistencia?");
+    .fill("¿Por qué son dependientes (2, 1) y (4, 2)?");
   await page.getByRole("button", { name: "Enviar pregunta" }).click();
   await page.getByRole("button", { name: /Abrir cita S1/ }).click();
   await expect(
     page.getByRole("dialog", { name: "Fuente citada" }),
-  ).toContainText("voltaje permanece fijo");
+  ).toContainText("determinante es cero");
   await page.getByRole("button", { name: "Cerrar fuente" }).click();
   await page.getByRole("button", { name: "Cerrar tutor" }).click();
   await page.getByRole("button", { name: "Practicar", exact: true }).click();
   await expect(page).toHaveURL(
-    /\/materias\/circuitos\/recursos\/practica-ohm$/,
+    /\/materias\/algebra-lineal\/recursos\/practica-vectores$/,
   );
   await expect(
     page.getByRole("button", { name: "Eliminar recurso" }),
   ).toHaveCount(0);
-  await page.getByRole("button", { name: "2 A", exact: true }).click();
+  await page.getByRole("button", { name: "0", exact: true }).click();
   await page.getByRole("button", { name: "Ver mi resultado" }).click();
   await expect(page.getByText(/Acertaste 1 de 1/)).toBeVisible();
   await page.getByRole("button", { name: "Ver tu progreso" }).click();
@@ -108,37 +113,109 @@ test("el espacio local conserva el calendario y permite consultar el apunte con 
   await page
     .getByRole("button", { name: "Crear recurso", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/materias\/circuitos\/recursos\/[\w-]+$/, {
-    timeout: 22_000,
+  await expect(page).toHaveURL(
+    /\/materias\/algebra-lineal\/recursos\/[\w-]+$/,
+    {
+      timeout: 22_000,
+    },
+  );
+  const slider = page.getByRole("slider", {
+    name: "Componente y del vector v",
   });
-  const resistance = page.getByRole("slider", { name: "Resistencia" });
-  const goal = page.getByTestId("ohm-goal");
-  await expect(resistance).toBeVisible();
-  // The goal is always reachable with a whole-number resistance.
-  const { voltage, current } = await goal.evaluate((element) => ({
-    voltage: Number(element.dataset.voltage),
-    current: Number(element.dataset.current),
+  const goal = page.getByTestId("vector-goal");
+  await expect(slider).toBeVisible();
+  await expect(
+    page.getByText("Vectores dependientes", { exact: true }),
+  ).toBeVisible();
+  const { slope, determinant } = await goal.evaluate((element) => ({
+    slope: Number(element.dataset.slope),
+    determinant: Number(element.dataset.determinant),
   }));
-  await resistance.fill(String(Math.round(voltage / current)));
+  await slider.fill(String(determinant / 2 + 2 * slope));
   await expect(page.getByText("¡Meta alcanzada!")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "De dónde sale" }),
   ).toBeVisible();
   await page.reload();
-  await expect(resistance).toBeVisible();
+  await expect(slider).toBeVisible();
   const remove = page.getByRole("button", { name: "Eliminar recurso" });
   await expect(remove).toBeVisible();
   page.once("dialog", (dialog) => dialog.dismiss());
   await remove.click();
-  await expect(resistance).toBeVisible();
+  await expect(slider).toBeVisible();
   page.once("dialog", (dialog) => dialog.accept());
   await remove.click();
-  await expect(page).toHaveURL(/\/materias\/circuitos\/recursos$/);
+  await expect(page).toHaveURL(/\/materias\/algebra-lineal\/recursos$/);
   await page.reload();
   await expect(
-    page.getByRole("button", { name: /Práctica de la ley de Ohm/ }),
+    page.getByRole("button", { name: /Práctica de vectores/ }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: /Experimento interactivo/ }),
   ).toHaveCount(0);
+});
+
+test("a saved workspace receives Álgebra lineal without losing its old materials", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const key = "educloud.local.data.v1";
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem("educloud.local.session.v1", "1");
+    localStorage.setItem(
+      key,
+      JSON.stringify({
+        profile: { id: "local", revision: 1, displayName: "Andrea" },
+        lists: {
+          subjects: [
+            { id: "circuitos", revision: 1, name: "Circuitos eléctricos" },
+          ],
+          agenda: [
+            {
+              id: "repaso",
+              revision: 1,
+              subjectId: "circuitos",
+              title: "Repasar la ley de Ohm",
+            },
+          ],
+          schedule: [],
+          topics: [],
+          periods: [],
+        },
+        materials: [
+          {
+            id: "attached",
+            subjectId: "circuitos",
+            name: "Tarea.pdf",
+            status: "local",
+          },
+        ],
+        resources: [],
+        conversations: [],
+        turns: [],
+        attempts: [],
+        reviews: {},
+      }),
+    );
+  });
+  await page.goto(process.env.EDUCLOUD_MVP_URL ?? "http://127.0.0.1:5173");
+  await expect(
+    page.getByRole("button", { name: "Ver apuntes de Álgebra lineal" }),
+  ).toBeVisible();
+  await expect(page.getByText("Repasar la ley de Ohm")).toHaveCount(0);
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Ver apuntes de Álgebra lineal" }),
+  ).toBeVisible();
+  const saved = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("educloud.local.data.v1")!),
+  );
+  expect(saved.profile.displayName).toBe("Andrea");
+  expect(saved.lists.subjects).toEqual([
+    expect.objectContaining({ id: "circuitos", archived: true }),
+    expect.objectContaining({ id: "algebra-lineal", archived: false }),
+  ]);
+  expect(saved.materials).toContainEqual(
+    expect.objectContaining({ name: "Tarea.pdf" }),
+  );
 });

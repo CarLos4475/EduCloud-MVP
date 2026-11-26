@@ -7,6 +7,10 @@ import { KIND_ICONS, KINDS, type Kind } from "../resources/types";
 import { ArtImage, Icon, type IconName } from "../../components/Icons";
 import { localWorkspace } from "../../mvp/workspace";
 import {
+  exampleQuestion,
+  subjectId as exampleSubjectId,
+} from "../../mvp/fixtures";
+import {
   Material,
   SourceRef,
   SourceViewer,
@@ -716,14 +720,12 @@ export function TutorPanel({
           <div className="conversation-history" aria-live="polite">
             {!turns.length &&
               (localWorkspace ? (
-                subject === "circuitos" && (
+                subject === exampleSubjectId && (
                   <button
                     className="suggestion"
-                    onClick={() =>
-                      setQuestion("¿Qué pasa si aumenta la resistencia?")
-                    }
+                    onClick={() => setQuestion(exampleQuestion)}
                   >
-                    ¿Qué pasa si aumenta la resistencia?
+                    {exampleQuestion}
                   </button>
                 )
               ) : (

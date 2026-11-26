@@ -7,6 +7,7 @@ import { canDeleteLocalResource } from "../../mvp/fixtures";
 import { watch } from "../notify/watch";
 import { Connections, Exercises } from "./Exercises";
 import { OhmChallenge } from "./OhmChallenge";
+import { VectorChallenge } from "./VectorChallenge";
 import { Flashcards, Quiz } from "./Practice";
 import type { Citation, ResourceDetail, ResourceVersion } from "./types";
 import { KINDS, type Kind } from "./types";
@@ -511,7 +512,12 @@ export function ResourceViewer({
             />
           )}
           {detail.kind === "interactive" &&
-            (localWorkspace && version.content?.ohmChallenge ? (
+            (localWorkspace && version.content?.vectorChallenge ? (
+              <VectorChallenge
+                key={version.id}
+                challenge={version.content.vectorChallenge}
+              />
+            ) : localWorkspace && version.content?.ohmChallenge ? (
               <OhmChallenge
                 key={version.id}
                 challenge={version.content.ohmChallenge}

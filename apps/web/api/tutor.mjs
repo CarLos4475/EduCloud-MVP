@@ -1,7 +1,10 @@
 import { readFileSync } from "node:fs";
 
 const note = JSON.parse(
-  readFileSync(new URL("../shared/ohm.json", import.meta.url), "utf8"),
+  readFileSync(
+    new URL("../shared/linear-algebra.json", import.meta.url),
+    "utf8",
+  ),
 );
 const endpoint = "https://api.deepseek.com/chat/completions";
 const maxBytes = 4096;
@@ -17,33 +20,34 @@ const styles = {
   direct: "Ve al punto.",
 };
 const limits = { brief: 350, normal: 500, detailed: 700 };
-const challengeAction = "create-ohm-challenge";
+const challengeAction = "create-vector-challenge";
 const challengeSystem = [
-  "Diseña un reto virtual breve de la ley de Ohm en español a partir de este apunte: " +
+  "Diseña un reto breve de independencia lineal en español a partir de este apunte: " +
     note.text,
-  "Crea una situación de taller o laboratorio. El estudiante moverá la resistencia para llegar a una corriente objetivo.",
+  "Crea una situación de robótica, gráficos o geometría. El estudiante moverá la componente vertical de un vector para alcanzar un determinante objetivo.",
   "Escribe un título de hasta 55 caracteres y una situación de hasta 145 caracteres. Omite números e instrucciones de cálculo en la situación: EduCloud muestra los valores.",
-  "Elige 6, 12, 18 o 24 para voltage y un entero entre 2 y 18 inclusive para targetResistance.",
-  "Devuelve únicamente JSON con los campos title, scenario, voltage y targetResistance.",
+  "Elige slope entre -2, -1, 1 o 2, y targetY como entero de -5 a 5 distinto de 2 * slope. EduCloud mostrará u = (2, slope) y v = (4, y).",
+  "Devuelve únicamente JSON con los campos title, scenario, slope y targetY.",
 ].join("\n");
 
 function validateChallenge(answer) {
   const title = typeof answer?.title === "string" ? answer.title.trim() : "";
   const scenario =
     typeof answer?.scenario === "string" ? answer.scenario.trim() : "";
-  const { voltage, targetResistance } = answer ?? {};
+  const { slope, targetY } = answer ?? {};
   if (
     !title ||
     title.length > 55 ||
     !scenario ||
     scenario.length > 145 ||
-    ![6, 12, 18, 24].includes(voltage) ||
-    !Number.isInteger(targetResistance) ||
-    targetResistance < 2 ||
-    targetResistance > 18
+    ![-2, -1, 1, 2].includes(slope) ||
+    !Number.isInteger(targetY) ||
+    targetY < -5 ||
+    targetY > 5 ||
+    targetY === 2 * slope
   )
     throw new Error("Invalid challenge");
-  return { title, scenario, voltage, targetResistance };
+  return { title, scenario, slope, targetY };
 }
 
 function reply(data, status = 200, headers = {}) {
@@ -119,7 +123,7 @@ export function createTutorHandler({ enabled, key, requestUpstream = fetch }) {
         422,
       );
     const question = challenge
-      ? "Prepara un reto de corriente y resistencia a voltaje constante."
+      ? "Prepara un reto de independencia lineal y determinante en el plano."
       : typeof payload?.question === "string"
         ? payload.question.trim()
         : "";

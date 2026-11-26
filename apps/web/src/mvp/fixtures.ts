@@ -1,4 +1,4 @@
-import note from "../../shared/ohm.json";
+import note from "../../shared/linear-algebra.json";
 import type { Row } from "../api";
 import type {
   Kind,
@@ -6,21 +6,30 @@ import type {
   ResourceVersion,
 } from "../features/resources/types";
 
-export const subjectId = "circuitos";
-export const exampleNoteId = "ley-de-ohm";
-export const exampleQuizId = "practica-ohm";
-const exampleCardsId = "tarjetas-ohm";
-const exampleSummaryId = "resumen-ohm";
+export const subjectId = "algebra-lineal";
+export const legacySubjectId = "circuitos";
+export const exampleQuestion = "¿Por qué son dependientes (2, 1) y (4, 2)?";
+export const exampleNoteId = "independencia-lineal";
+export const exampleQuizId = "practica-vectores";
+const exampleCardsId = "tarjetas-vectores";
+const exampleSummaryId = "resumen-vectores";
 
 export function canDeleteLocalResource(id: string) {
-  return ![exampleQuizId, exampleCardsId, exampleSummaryId].includes(id);
+  return ![
+    exampleQuizId,
+    exampleCardsId,
+    exampleSummaryId,
+    "practica-ohm",
+    "tarjetas-ohm",
+    "resumen-ohm",
+  ].includes(id);
 }
 
-export type OhmChallenge = {
+export type VectorChallenge = {
   title: string;
   scenario: string;
-  voltage: number;
-  targetResistance: number;
+  slope: number;
+  targetY: number;
 };
 export const noteBlock = {
   materialId: exampleNoteId,
@@ -37,57 +46,63 @@ export const sampleNote = {
   name: note.title,
   mediaType: "text/plain",
   status: "ready",
-  topicIds: ["ohm"],
+  topicIds: ["independencia"],
   blocks: [noteBlock],
 };
 
 export const practiceContent = {
   questions: [
     {
-      prompt:
-        "Un circuito tiene 12 V y una resistencia de 6 Ω. ¿Cuál es su corriente?",
-      options: ["1 A", "2 A", "6 A", "72 A"],
+      prompt: "¿Cuál es el determinante de u = (2, 1) y v = (4, 2)?",
+      options: ["−4", "0", "2", "4"],
       correctIndex: 1,
-      explanation: "Usa I = V / R. Al dividir 12 V entre 6 Ω obtienes 2 A.",
+      explanation:
+        "El determinante es 2 × 2 − 1 × 4 = 0. El vector v es el doble de u.",
     },
   ],
 };
 const contents: Partial<Record<Kind, ResourceVersion["content"]>> = {
   summary: {
-    overview: "La ley de Ohm describe la relación $$V = I \\times R$$.",
+    overview:
+      "Dos vectores del plano son independientes si su determinante es distinto de cero.",
     sections: [
       {
         heading: "Un ejemplo",
-        body: "Para 12 V y 6 Ω, la corriente es de 2 A.",
+        body: "Para u = (2, 1) y v = (4, 2), el determinante es cero porque v = 2u.",
       },
     ],
     keyPoints: [
-      "A mayor resistencia, menor corriente si el voltaje no cambia.",
+      "El valor absoluto del determinante mide el área del paralelogramo.",
     ],
   },
   concepts: {
     concepts: [
       {
-        term: "Voltaje",
-        definition: "Diferencia de potencial eléctrico. Se mide en voltios.",
+        term: "Determinante",
+        definition: "Para u = (a, b) y v = (c, d), es ad − bc.",
       },
       {
-        term: "Resistencia",
-        definition: "Oposición al paso de la corriente. Se mide en ohmios.",
+        term: "Dependencia",
+        definition:
+          "Los dos vectores se alinean sobre la misma recta y su determinante es cero.",
       },
       {
-        term: "Corriente",
-        definition: "Flujo de carga eléctrica. Se mide en amperios.",
+        term: "Independencia",
+        definition:
+          "Los vectores no se alinean en una misma recta y su determinante es distinto de cero.",
       },
     ],
   },
   flashcards: {
     cards: [
       {
-        front: "¿Cómo calculas la corriente con la ley de Ohm?",
-        back: "$I = V / R$.",
+        front: "¿Qué significa que el determinante de dos vectores sea cero?",
+        back: "Que son linealmente dependientes.",
       },
-      { front: "¿Cuál es la unidad de la resistencia?", back: "El ohmio (Ω)." },
+      {
+        front: "¿Cómo obtienes el área del paralelogramo?",
+        back: "Toma el valor absoluto del determinante.",
+      },
     ],
   },
   quiz: practiceContent,
@@ -103,13 +118,13 @@ export function sampleResource(
   return content ? readyResource(id, kind, target, title, content) : null;
 }
 
-export function ohmResource(challenge: OhmChallenge): ResourceDetail {
+export function vectorResource(challenge: VectorChallenge): ResourceDetail {
   return readyResource(
     crypto.randomUUID(),
     "interactive",
     subjectId,
     challenge.title,
-    { ohmChallenge: challenge },
+    { vectorChallenge: challenge },
     noteBlock.text,
   );
 }
@@ -140,7 +155,7 @@ function readyResource(
         id: versionId,
         resourceId: id,
         number: 1,
-        instruction: "Repasar la ley de Ohm",
+        instruction: "Repasar independencia lineal",
         status: "succeeded",
         stage: "succeeded",
         usageUnknown: false,
@@ -176,28 +191,28 @@ export function seedWorkspace() {
       {
         id: subjectId,
         revision: 1,
-        name: "Circuitos eléctricos",
+        name: "Álgebra lineal",
         periodId: "semestre",
-        illustrationId: "circuit",
+        illustrationId: "vector",
         color: "blue",
         archived: false,
       },
     ],
     topics: [
       {
-        id: "ohm",
+        id: "independencia",
         revision: 1,
         subjectId,
-        title: "Ley de Ohm",
+        title: note.title,
         prerequisiteIds: [],
       },
     ],
     agenda: [
       {
-        id: "repaso",
+        id: "repaso-vectores",
         revision: 1,
         subjectId,
-        title: "Repasar la ley de Ohm",
+        title: "Repasar independencia lineal",
         status: "pending",
         dueDate,
         importance: "normal",
@@ -205,7 +220,7 @@ export function seedWorkspace() {
     ],
     schedule: [
       {
-        id: "clase",
+        id: "clase-algebra",
         revision: 1,
         subjectId,
         weekday: 2,
@@ -217,6 +232,7 @@ export function seedWorkspace() {
     ],
   };
   return {
+    exampleEdition: "linear-algebra",
     profile: {
       id: "local",
       revision: 1,
@@ -228,23 +244,18 @@ export function seedWorkspace() {
     lists,
     materials: [sampleNote] as Row[],
     resources: [
-      sampleResource(
-        exampleQuizId,
-        "quiz",
-        subjectId,
-        "Práctica de la ley de Ohm",
-      )!,
+      sampleResource(exampleQuizId, "quiz", subjectId, "Práctica de vectores")!,
       sampleResource(
         exampleCardsId,
         "flashcards",
         subjectId,
-        "Tarjetas de circuitos",
+        "Tarjetas de álgebra lineal",
       )!,
       sampleResource(
         exampleSummaryId,
         "summary",
         subjectId,
-        "Ley de Ohm en breve",
+        "Independencia lineal en breve",
       )!,
     ],
     conversations: [] as Row[],

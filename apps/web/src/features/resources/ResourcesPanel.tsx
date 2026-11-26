@@ -7,7 +7,7 @@ import type { ResourceDetail, ResourceRow } from "./types";
 import { KINDS } from "./types";
 import { ArtImage } from "../../components/Icons";
 import { localWorkspace } from "../../mvp/workspace";
-import { subjectId as ohmSubjectId } from "../../mvp/fixtures";
+import { subjectId as exampleSubjectId } from "../../mvp/fixtures";
 
 const ACTIVE = ["queued", "running", "cancel_requested"];
 
@@ -174,7 +174,7 @@ export function ResourcesPanel({
           <h2 id="resources-title">Recursos para estudiar</h2>
         </div>
         {localWorkspace ? (
-          subjectId === ohmSubjectId && (
+          subjectId === exampleSubjectId && (
             <button
               className="primary"
               disabled={creating || opening}
@@ -194,9 +194,7 @@ export function ResourcesPanel({
           {error}
         </p>
       )}
-      {creating && (
-        <Skeleton lines={3} label="Creando tu reto de la ley de Ohm…" />
-      )}
+      {creating && <Skeleton lines={3} label="Creando tu reto de vectores…" />}
       <ProgressPanel
         subjectId={subjectId}
         onOpen={(id) => onResourceChange(id)}

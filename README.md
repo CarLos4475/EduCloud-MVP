@@ -10,9 +10,9 @@ Al estudiar para una materia, es común tener los apuntes en un archivo, los pen
 
 ## ¿Qué se puede hacer hoy?
 
-En el [MVP público de EduCloud](https://educloud-mvp.vercel.app), crea un espacio y elige **Ver apuntes de Circuitos eléctricos**. Pregúntale al tutor qué pasa con la corriente cuando aumenta la resistencia y abre la cita del apunte sobre la ley de Ohm. Resuelve la práctica y elige **Ver tu progreso** para consultar tu resultado. El calendario está disponible desde el menú.
+En el [MVP público de EduCloud](https://educloud-mvp.vercel.app), crea un espacio y elige **Ver apuntes de Álgebra lineal**. Pregúntale al tutor por qué los vectores (2, 1) y (4, 2) son dependientes y abre la cita del apunte. Resuelve la práctica y elige **Ver tu progreso** para consultar tu resultado. El calendario está disponible desde el menú.
 
-El tutor responde con DeepSeek. En **Recursos**, el botón **Crear recurso** usa el apunte de la ley de Ohm para generar un reto en el que puedes mover la resistencia y ver cómo cambia la corriente. El reto y el avance se guardan en el navegador. El selector de archivos muestra el nombre y el tamaño del archivo que eliges.
+El tutor responde con DeepSeek. En **Recursos**, el botón **Crear recurso** toma el apunte de independencia lineal para generar un reto. Mueve un vector y observa cómo cambian el determinante y el paralelogramo. El reto y el avance se guardan en el navegador. El selector de archivos muestra el nombre y el tamaño del archivo que eliges.
 
 ## ¿Cómo usaríamos datos, ML e IA?
 
