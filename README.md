@@ -1,65 +1,40 @@
 # EduCloud
 
-Prueba [EduCloud en Vercel](https://educloud-mvp.vercel.app). Puedes abrir un espacio, revisar el calendario, consultar el tutor y resolver una práctica. Esta versión guarda el avance en el navegador y usa DeepSeek para responder. El código está en [CarLos4475/EduCloud-MVP](https://github.com/CarLos4475/EduCloud-MVP). La [guía de Vercel](docs/runbooks/mvp-vercel.md) explica cómo probar y publicar cambios.
+Proyecto final de **Cómputo en la Nube** de la Licenciatura en Matemáticas Aplicadas y Computación, FES Acatlán, UNAM.
 
-Funcionan identidad, perfil, materias libres, temas, periodos, agenda y horario. H2 incorpora biblioteca privada, extracción y revisión de apuntes, tutor con fuentes verificables, personalidades, modos de ayuda e historial recuperable. H0 conserva el laboratorio aislado de recursos interactivos; su generación dentro del tutor corresponde a H3.
+**Eje temático:** aprendizaje universitario personalizado con datos, aprendizaje automático e inteligencia artificial.
 
-Para retomar el proyecto, lee [AGENTS.md](AGENTS.md) y el [contexto](docs/CONTEXTO.md). La aplicación completa se prueba en local con Firebase y FastAPI. Su despliegue en Google Cloud sigue en pausa hasta que se active la facturación. La versión de Vercel se publica por separado y usa datos del navegador.
+## ¿Qué problema queremos resolver?
 
-## Requisitos e instalación
+Al estudiar para una materia, es común tener los apuntes en un archivo, los pendientes en otro lugar y las dudas en un chat. Cuando toca retomar el tema, hay que volver a buscar todo. Pensamos EduCloud para estudiantes universitarios de ciencias físico-matemáticas e ingeniería que quieren organizar el semestre y estudiar con el material que ya usan en clase.
 
-Node 24 LTS, pnpm 11, Python 3.12–3.13, uv y Java 21 para los emuladores. Esta PC tiene un JRE 21 local en `.tools/java21`, detectado por el script sin modificar el Java del sistema. En PowerShell:
+## ¿Qué se puede hacer hoy?
 
-```powershell
-pnpm install --frozen-lockfile
-uv sync --project backend --locked
-pnpm emulators
-```
+En el [MVP público de EduCloud](https://educloud-mvp.vercel.app), crea un espacio y abre **Circuitos eléctricos**. Puedes consultar el calendario, preguntarle al tutor qué pasa con la corriente cuando aumenta la resistencia, abrir la cita del apunte sobre la ley de Ohm y resolver una práctica. El resultado aparece en **Tu progreso**.
 
-En otra terminal: `pnpm dev`. Arranca web, renderer, API y worker persistente. Copiar `.env.example` a `.env` solo la primera vez; nunca sobrescribir una clave ya configurada. En Windows, reiniciar este comando tras cambios de Python; la web mantiene HMR.
+El tutor responde con DeepSeek. El espacio y el avance se guardan en el navegador. El selector muestra el nombre y el tamaño del archivo que eliges. Para las consultas, el tutor usa el apunte incluido en la materia.
 
-- Aplicación: http://127.0.0.1:5173
-- Laboratorio H0: http://127.0.0.1:5173/h0.html
-- Contratos API: http://127.0.0.1:8000/docs
-- Auth/Firestore emulados: puertos 9099/8080; cuentas sintéticas con dominio institucional.
+## ¿Cómo usaríamos datos, ML e IA?
 
-El emulador exporta datos al salir con el script; `.firebase` está ignorado. Archivar conserva relaciones. Eliminar una materia borra también sus temas, pendientes, apuntes, archivos, conversaciones, recursos y práctica; se rechaza mientras haya tareas en curso.
+- **Datos.** Las materias, los apuntes y los intentos de práctica permiten mostrar qué ha repasado cada estudiante y en qué temas aún comete errores.
+- **Aprendizaje automático.** Con un historial suficiente, probaríamos un modelo en BigQuery ML para sugerir qué tema conviene repasar. Compararíamos sus sugerencias con las reglas que usa el MVP.
+- **Inteligencia artificial.** El tutor explica a partir de los apuntes y cita el fragmento que usó. Para la versión completa, Cloud Vision sería una opción para leer texto de apuntes escaneados.
 
-## Servicios reales
+## La nube que proponemos
 
-Firebase y los datos están en `educloud-1d5de`, con Firestore Native `(default)` en `us-central1`, reglas cliente deny-all y app web registrada. `educloud-513604` queda reservado para Cloud Run cuando se despliegue la aplicación completa.
+La versión que se puede abrir hoy está en Vercel. Para una versión con cuentas y archivos propios, planteamos esta arquitectura en Google Cloud:
 
-Los originales, versiones e índices de H2 se guardan por ahora en `.data/objects`, fuera de las rutas servidas y excluida de Git. Los dos servidores Vite deniegan también acceso mediante `@fs`. El adaptador GCS exige acceso uniforme y prevención de acceso público. Crear el bucket requiere activar facturación; no se ha vinculado ninguna cuenta ni creado el bucket. El worker local consulta trabajos persistidos; el transporte Cloud Tasks queda preparado para H6.
+| Servicio | Qué haría en EduCloud |
+| --- | --- |
+| Firebase Hosting y Authentication | Publicar la web y verificar el acceso con correo institucional. |
+| Cloud Run | Atender las solicitudes y procesar apuntes sin administrar un servidor propio. |
+| Cloud Storage | Guardar los archivos en privado para que cada estudiante pueda consultar los suyos. |
+| Firestore | Consultar materias, pendientes y conversaciones sin tener que abrir los documentos. |
+| Cloud Tasks | Poner en fila los archivos por procesar mientras el estudiante sigue usando la página. |
+| BigQuery y BigQuery ML | Analizar los resultados de práctica y probar recomendaciones de repaso. |
 
-`pnpm dev:cloud` conecta la web local con Firebase/Firestore reales usando las sesiones Firebase CLI/gcloud del operador. Las credenciales temporales permanecen en memoria, no en variables VITE ni archivos. Al expirar la sesión, reiniciar el comando. En Cloud Run se usará identidad de servicio/ADC; el adaptador de operador local se niega a funcionar allí. El script local de gcloud está preparado para la ruta de Windows de esta PC.
+## ¿Cómo sabríamos si ayuda?
 
-La API exige dominio exacto `pcpuma.acatlan.unam.mx`, correo verificado en real y pertenencia al piloto (`CAMPUS_PILOT_UIDS` o `CAMPUS_PILOT_EMAILS`, solo backend). Esta restricción protege acceso a datos; no bloquea la creación de identidades externas mediante la API pública de Firebase. Las cuentas externas no acceden a la aplicación. La verificación de correo se omite únicamente en el emulador.
+En un piloto con estudiantes de Acatlán, les pediríamos localizar un apunte, aclarar una duda y guardar una práctica. Compararíamos cuánto tardan con EduCloud y con las herramientas que ya usan. También revisaríamos si pueden encontrar el fragmento que respalda la respuesta del tutor.
 
-## Verificación
-
-```powershell
-pnpm check
-pnpm test:unit
-pnpm test:integration # requiere emuladores
-pnpm test:e2e         # usar modo de prueba del runbook H2
-pnpm test:security
-pnpm audit --prod
-pnpm --filter @campus/web build
-pnpm --filter @campus/renderer build
-```
-
-`pnpm check` comprueba tipos, Ruff, mypy y sincronización de contratos. El sandbox de herramientas de Windows puede bloquear asyncio: las pruebas se verificaron fuera de él. No se sustituyen resultados de emulador por resultados de servicios reales.
-
-Pruebas opt-in: `pnpm eval:ai` utiliza DeepSeek con cinco solicitudes sintéticas; `node scripts/ai-eval.mjs --generate-resource` genera y valida una experiencia; `node scripts/cloud-smoke.mjs --preflight` solo lee permisos y fixtures; `pnpm test:cloud` crea una cuenta sintética, prueba Auth/Firestore y elimina únicamente sus datos. El fixture se marca verificado por Admin SDK sin enviar correos. No se modifica la cuenta real del estudiante. La clave DeepSeek se lee de `.env` y no se imprime.
-
-H2: `pnpm eval:ai:h2` verifica visión y tutoría con dos llamadas reales y material sintético. `pnpm test:cloud:h2 --preflight` consulta el índice remoto sin escribir; sin esa opción crea un UID de fixture, prueba persistencia y elimina solo sus documentos, sin crear cuentas de Auth. El [runbook H2](docs/runbooks/desarrollo-h2.md) explica arranque, pruebas, límites y configuración futura del bucket.
-
-## Contratos y documentación
-
-`pnpm contracts:generate` exporta OpenAPI y DTOs TypeScript desde el backend; `pnpm contracts:check` detecta divergencias. Las rutas académicas ya ejecutan operaciones reales; `/api/v1/contracts` queda como diagnóstico 501. Los contratos detallados de futuros módulos se amplían al implementar sus consumidores.
-
-El [informe escolar de H0/H1](docs/academico/fases-1-2/informe-fases-1-2.pdf) ocupa nueve páginas con la portada y el estilo académico indicados por el usuario. H2 se documenta en su [registro de cierre](docs/evidence/cierre-h2.md). La implementación continúa directamente con un solo agente por decisión del usuario.
-
-Los recursos interactivos nuevos (versión 2) son código libre en un sandbox aislado con un kit de diseño propio ([ADR 0006](docs/adr/0006-recursos-interactivos-libres.md)); `/sandbox.html` del renderer necesita sus propias cabeceras de seguridad al desplegar. La práctica incluye tarjetas, cuestionario, ejercicios y conexiones; el registro de esta mejora está en [mejoras visuales](docs/evidence/mejoras-visuales-2026-11-12.md).
-
-El [cierre H3/H4](docs/evidence/cierre-h3-h4.md) resume recursos, práctica, pasaporte y borrado, y la [guía de demo](docs/DEMO.md) explica el recorrido. `pnpm eval:ai:h3` mide con IA real la calidad del tutor y los recursos. El [registro de evidencia](docs/evidence/avance-fases-1-2.md) detalla pruebas y límites. El laboratorio es una prueba de viabilidad QuickJS/WASM con SDK acotado, no un IDE remoto. La configuración de orígenes/CSP debe adaptarse al desplegar. La calidad de IA se evaluó con un corpus sintético pequeño, no como certificación académica general.
+[Primera entrega del proyecto](docs/academico/primera-entrega/educloud-primera-entrega.pdf) · [Guía de desarrollo local](docs/runbooks/desarrollo-local.md)

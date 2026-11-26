@@ -3,7 +3,7 @@
 ## Leer al retomar
 
 1. [Contexto y estado actual](docs/CONTEXTO.md): acuerdos, alcance implementado y siguiente paso.
-2. [README](README.md): instalación, ejecución y comandos de verificación.
+2. [README](README.md): presentación del proyecto. [Desarrollo local](docs/runbooks/desarrollo-local.md): instalación, ejecución y comandos de verificación.
 3. [Plan v1](docs/PLAN_V1.md): alcance completo; sus tareas futuras no están implementadas por aparecer en el plan.
 4. [Cierre H2](docs/evidence/cierre-h2.md), [cierre H3/H4](docs/evidence/cierre-h3-h4.md) y [runbook H2](docs/runbooks/desarrollo-h2.md): evidencia, límites y operación. La [guía de demo](docs/DEMO.md) resume el recorrido.
 
@@ -16,7 +16,7 @@ Consultar `docs/adr/` para decisiones técnicas y el plan detallado solo para la
 - Conservar el estilo Block & Bold con azul y oro, materias libres e inicio organizador; el tutor se abre manualmente.
 - Usar esqueletos para estados de espera, no spinners. Es un requisito pendiente de aplicar de forma general; no darlo por terminado.
 - Priorizar material del estudiante, verificar citas y pedir consentimiento para usar conocimiento general. No ejecutar código generado en el origen principal.
-- Mantener contratos backend/frontend sincronizados mediante los comandos del README. Verificar el cambio con comprobaciones proporcionadas a su alcance y registrar límites sin inventar resultados.
+- Mantener contratos backend/frontend sincronizados mediante los comandos de la guía de desarrollo local. Verificar el cambio con comprobaciones proporcionadas a su alcance y registrar límites sin inventar resultados.
 - No sobrescribir `.env`, imprimir claves ni subir credenciales, `.data`, dependencias, cachés o artefactos temporales. No copiar correos personales a la documentación.
 - Mantener dominio institucional exacto `pcpuma.acatlan.unam.mx`, correo verificado en real, piloto autorizado y autorización en backend. No debilitar reglas para facilitar una demo.
 - No presentar el proveedor sintético como IA real ni las pruebas con emuladores como pruebas cloud.
