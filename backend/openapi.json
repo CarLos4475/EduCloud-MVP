@@ -540,6 +540,16 @@
             "title": "Preferences",
             "type": "string"
           },
+          "responseLength": {
+            "default": "brief",
+            "enum": [
+              "brief",
+              "normal",
+              "detailed"
+            ],
+            "title": "Responselength",
+            "type": "string"
+          },
           "sourceMode": {
             "default": "selected_material",
             "enum": [
@@ -624,6 +634,16 @@
             "title": "Preferences",
             "type": "string"
           },
+          "responseLength": {
+            "default": "brief",
+            "enum": [
+              "brief",
+              "normal",
+              "detailed"
+            ],
+            "title": "Responselength",
+            "type": "string"
+          },
           "revision": {
             "title": "Revision",
             "type": "integer"
@@ -700,6 +720,16 @@
             "default": "",
             "maxLength": 500,
             "title": "Preferences",
+            "type": "string"
+          },
+          "responseLength": {
+            "default": "brief",
+            "enum": [
+              "brief",
+              "normal",
+              "detailed"
+            ],
+            "title": "Responselength",
             "type": "string"
           },
           "sourceMode": {
@@ -831,6 +861,103 @@
           "requestedCapabilities"
         ],
         "title": "InteractivePackageV1",
+        "type": "object"
+      },
+      "InteractivePackageV2": {
+        "additionalProperties": false,
+        "description": "Recurso interactivo libre: HTML, CSS y JavaScript que corren en un sandbox sin red.\n\nEl kit visual de EduCloud (clases ec-* y la API EC) lo provee el anfitrión; el paquete solo\ntrae el contenido. La seguridad la da el sandbox, no estas comprobaciones estáticas.",
+        "properties": {
+          "css": {
+            "default": "",
+            "maxLength": 30000,
+            "title": "Css",
+            "type": "string"
+          },
+          "html": {
+            "maxLength": 60000,
+            "minLength": 1,
+            "title": "Html",
+            "type": "string"
+          },
+          "initialState": {
+            "additionalProperties": true,
+            "title": "Initialstate",
+            "type": "object"
+          },
+          "instructions": {
+            "maxLength": 3000,
+            "minLength": 1,
+            "title": "Instructions",
+            "type": "string"
+          },
+          "javascript": {
+            "maxLength": 90000,
+            "minLength": 1,
+            "title": "Javascript",
+            "type": "string"
+          },
+          "learningObjective": {
+            "maxLength": 600,
+            "minLength": 1,
+            "title": "Learningobjective",
+            "type": "string"
+          },
+          "requestedCapabilities": {
+            "items": {
+              "enum": [
+                "controls",
+                "math",
+                "plot",
+                "canvas2d",
+                "state"
+              ],
+              "type": "string"
+            },
+            "title": "Requestedcapabilities",
+            "type": "array"
+          },
+          "schemaVersion": {
+            "const": 2,
+            "title": "Schemaversion",
+            "type": "integer"
+          },
+          "sourceRefs": {
+            "items": {
+              "$ref": "#/components/schemas/SourceRef"
+            },
+            "title": "Sourcerefs",
+            "type": "array"
+          },
+          "studyGuide": {
+            "default": "",
+            "maxLength": 1500,
+            "title": "Studyguide",
+            "type": "string"
+          },
+          "textAlternative": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Textalternative",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "title",
+          "learningObjective",
+          "instructions",
+          "html",
+          "javascript",
+          "initialState",
+          "textAlternative"
+        ],
+        "title": "InteractivePackageV2",
         "type": "object"
       },
       "JobRead": {
@@ -1764,7 +1891,9 @@
               "concepts",
               "flashcards",
               "quiz",
-              "interactive"
+              "interactive",
+              "exercises",
+              "connections"
             ],
             "title": "Kind",
             "type": "string"
@@ -1856,7 +1985,9 @@
               "concepts",
               "flashcards",
               "quiz",
-              "interactive"
+              "interactive",
+              "exercises",
+              "connections"
             ],
             "title": "Kind",
             "type": "string"
@@ -1920,7 +2051,9 @@
               "concepts",
               "flashcards",
               "quiz",
-              "interactive"
+              "interactive",
+              "exercises",
+              "connections"
             ],
             "title": "Kind",
             "type": "string"
@@ -2685,6 +2818,13 @@
       },
       "TurnRead": {
         "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/TutorAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
           "citations": {
             "items": {
               "$ref": "#/components/schemas/CitationRead"
@@ -2795,6 +2935,44 @@
           "sequence"
         ],
         "title": "TurnRead",
+        "type": "object"
+      },
+      "TutorAction": {
+        "additionalProperties": false,
+        "description": "A suggestion the student can accept with one tap; the tutor never runs it.",
+        "properties": {
+          "instruction": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Instruction",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "flashcards",
+              "quiz",
+              "exercises",
+              "connections",
+              "interactive",
+              "summary",
+              "concepts"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "label",
+          "instruction"
+        ],
+        "title": "TutorAction",
         "type": "object"
       },
       "UpdateAgendaInput": {

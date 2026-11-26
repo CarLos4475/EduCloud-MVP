@@ -13,4 +13,4 @@ Formato: PNG con fondo transparente, sin texto dentro de la imagen. Nombres exac
 | `art/subjects/` | `grid.png`, `wave.png`, `orbit.png`, `geometry.png`, `terminal.png`, `circuit.png`, `blocks.png`, `compass.png`, `vector.png`, `graph.png`, `cube.png`, `nodes.png` | 640×520 |
 | `art/icons/` | `nav-home.png`, `nav-subjects.png`, `nav-agenda.png`, `nav-schedule.png`, `nav-profile.png`, `mode-explain.png`, `mode-hints.png`, `mode-solution.png`, `mode-practice.png` | 128×128 |
 
-Ya están conectados: `tutor-avatar`, `tutor-empty`, `personalities/*`, `kinds/*`, `stamps/*`, `subjects/*` y `icons/*`. También están conectados `logo` (menú y pestaña), `login-hero`, `home-hero` y los `empty-*`.
+Ya están conectados: `tutor-avatar`, `tutor-empty`, `personalities/*`, `kinds/*`, `stamps/*`, `subjects/*` y `icons/*`. También están conectados `logo` (menú y pestaña), `login-hero`, `home-hero` y los `empty-*`. La Ronda 2 también: `kinds/exercises`, `kinds/connections`, `kinds/interactive-*`, `icons/nav-library`, `icons/nav-calendar`, `icons/action-*`, `icons/tab-*`, `continue-hero`, `create-hero`, `empty-library`, `empty-search` y `empty-subject-notes`.

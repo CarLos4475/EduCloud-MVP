@@ -117,3 +117,21 @@ def test_passport_stamps_are_earned_only_from_real_activity(tmp_path):
     assert passport["earned"] == sum(s["earned"] for s in passport["stamps"])
     assert practice.passport("bob")["earned"] == 0
     assert interactive
+
+
+def test_exercise_and_connection_marks_do_not_inflate_card_stats(tmp_path):
+    practice, service, jobs, subject, material = setup(tmp_path)
+    _, exercises = ready(service, jobs, subject, material, "exercises", "e")
+    _, pairs = ready(service, jobs, subject, material, "connections", "c")
+    _, cards = ready(service, jobs, subject, material, "flashcards", "f")
+    practice.put_review("alice", exercises, {"cards": {"0": "known", "1": "again"}})
+    practice.put_review("alice", pairs, {"cards": {"0": "again"}})
+    practice.put_review("alice", cards, {"cards": {"0": "known"}})
+    with pytest.raises(DomainError):
+        practice.put_review("alice", exercises, {"cards": {"9": "known"}})
+    progress = practice.progress("alice", subject["id"])
+    assert (progress["cardsKnown"], progress["cardsToReview"]) == (1, 0)
+    assert any(
+        "ejercicios o conexiones" in t["text"] for t in progress["recommendations"]
+    )
+    assert practice.get_review("alice", exercises)["cards"]["1"] == "again"

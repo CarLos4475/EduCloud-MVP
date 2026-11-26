@@ -1,4 +1,6 @@
-# Mi Campus · H0–H2
+# EduCloud
+
+El repositorio activo es [CarLos4475/EduCloud-MVP](https://github.com/CarLos4475/EduCloud-MVP). La [compilación de revisión](docs/runbooks/mvp-vercel.md) reutiliza las pantallas actuales con datos en el navegador y un tutor conectado al proveedor real. El entorno de desarrollo completo sigue usando Firebase y FastAPI.
 
 Funcionan identidad, perfil, materias libres, temas, periodos, agenda y horario. H2 incorpora biblioteca privada, extracción y revisión de apuntes, tutor con fuentes verificables, personalidades, modos de ayuda e historial recuperable. H0 conserva el laboratorio aislado de recursos interactivos; su generación dentro del tutor corresponde a H3.
 
@@ -57,5 +59,7 @@ H2: `pnpm eval:ai:h2` verifica visión y tutoría con dos llamadas reales y mate
 `pnpm contracts:generate` exporta OpenAPI y DTOs TypeScript desde el backend; `pnpm contracts:check` detecta divergencias. Las rutas académicas ya ejecutan operaciones reales; `/api/v1/contracts` queda como diagnóstico 501. Los contratos detallados de futuros módulos se amplían al implementar sus consumidores.
 
 El [informe escolar de H0/H1](docs/academico/fases-1-2/informe-fases-1-2.pdf) ocupa nueve páginas con la portada y el estilo académico indicados por el usuario. H2 se documenta en su [registro de cierre](docs/evidence/cierre-h2.md). La implementación continúa directamente con un solo agente por decisión del usuario.
+
+Los recursos interactivos nuevos (versión 2) son código libre en un sandbox aislado con un kit de diseño propio ([ADR 0006](docs/adr/0006-recursos-interactivos-libres.md)); `/sandbox.html` del renderer necesita sus propias cabeceras de seguridad al desplegar. La práctica incluye tarjetas, cuestionario, ejercicios y conexiones; el registro de esta mejora está en [mejoras visuales](docs/evidence/mejoras-visuales-2026-11-12.md).
 
 El [cierre H3/H4](docs/evidence/cierre-h3-h4.md) resume recursos, práctica, pasaporte y borrado, y la [guía de demo](docs/DEMO.md) explica el recorrido. `pnpm eval:ai:h3` mide con IA real la calidad del tutor y los recursos. El [registro de evidencia](docs/evidence/avance-fases-1-2.md) detalla pruebas y límites. El laboratorio es una prueba de viabilidad QuickJS/WASM con SDK acotado, no un IDE remoto. La configuración de orígenes/CSP debe adaptarse al desplegar. La calidad de IA se evaluó con un corpus sintético pequeño, no como certificación académica general.

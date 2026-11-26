@@ -6,7 +6,15 @@ from pydantic import ConfigDict, Field
 
 from campus.domain.contracts import ContractModel, SourceRef
 
-ResourceKind = Literal["summary", "concepts", "flashcards", "quiz", "interactive"]
+ResourceKind = Literal[
+    "summary",
+    "concepts",
+    "flashcards",
+    "quiz",
+    "interactive",
+    "exercises",
+    "connections",
+]
 
 KIND_LABELS = {
     "summary": "Resumen",
@@ -14,6 +22,8 @@ KIND_LABELS = {
     "flashcards": "Tarjetas de estudio",
     "quiz": "Cuestionario",
     "interactive": "Experiencia interactiva",
+    "exercises": "Ejercicios",
+    "connections": "Conexiones",
 }
 
 
@@ -87,6 +97,62 @@ class Question(Lenient):
 
 class QuizContent(Lenient):
     questions: list[Question] = Field(min_length=1, max_length=15)
+
+
+class Exercise(Lenient):
+    type: Literal["open", "complete", "order"]
+    prompt: str = Field(min_length=1, max_length=1500)
+    answer: str = Field(default="", max_length=1500)
+    steps: list[str] = Field(default_factory=list, max_length=6)
+    hints: list[str] = Field(min_length=1, max_length=2)
+    explanation: str = Field(min_length=1, max_length=1500)
+
+    def check(self):
+        if self.type == "complete":
+            if (
+                "___" not in self.prompt
+                or not self.answer.strip()
+                or len(self.answer) > 80
+            ):
+                raise ValueError(
+                    "Los ejercicios de completar llevan ___ en el enunciado y una respuesta breve."
+                )
+        elif self.type == "order":
+            steps = [s.strip() for s in self.steps]
+            if not 3 <= len(steps) <= 6 or len(set(steps)) != len(steps) or "" in steps:
+                raise ValueError(
+                    "Los ejercicios de ordenar llevan de 3 a 6 pasos distintos, en el orden correcto."
+                )
+        elif not self.answer.strip():
+            raise ValueError(
+                "Los ejercicios abiertos llevan una solución de referencia."
+            )
+
+
+class ExercisesContent(Lenient):
+    exercises: list[Exercise] = Field(min_length=1, max_length=12)
+
+    def check(self):
+        for exercise in self.exercises:
+            exercise.check()
+
+
+class Pair(Lenient):
+    left: str = Field(min_length=1, max_length=160)
+    right: str = Field(min_length=1, max_length=160)
+    why: str = Field(min_length=1, max_length=600)
+
+
+class ConnectionsContent(Lenient):
+    pairs: list[Pair] = Field(min_length=3, max_length=8)
+
+    def check(self):
+        lefts = {p.left.strip().lower() for p in self.pairs}
+        rights = {p.right.strip().lower() for p in self.pairs}
+        if len(lefts) != len(self.pairs) or len(rights) != len(self.pairs):
+            raise ValueError(
+                "Cada concepto y cada relación deben aparecer una sola vez."
+            )
 
 
 class VersionRead(Lenient):

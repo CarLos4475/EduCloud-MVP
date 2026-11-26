@@ -48,11 +48,12 @@ test("V01 V02 V03: register, create freely, edit illustration, persist and compl
   await expect(
     page.getByRole("heading", { name: "Interpolación", exact: true }),
   ).toBeVisible();
+  await page.getByRole("tab", { name: "Pendientes" }).click();
   await page.getByRole("button", { name: "+ Agregar", exact: true }).click();
   await page.getByLabel("Título", { exact: true }).fill("Preparar examen");
   await page.getByLabel("Día completo", { exact: true }).fill("2026-12-10");
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
-  await page.getByRole("button", { name: "Agenda", exact: true }).click();
+  await page.getByRole("button", { name: "Calendario", exact: true }).click();
   await Promise.all([
     page.waitForResponse(
       (response) =>
@@ -63,7 +64,7 @@ test("V01 V02 V03: register, create freely, edit illustration, persist and compl
     page.getByRole("checkbox", { name: "Completar Preparar examen" }).check(),
   ]);
   await page.reload();
-  await page.getByRole("button", { name: "Agenda", exact: true }).click();
+  await page.getByRole("button", { name: "Calendario", exact: true }).click();
   await expect(
     page.getByRole("checkbox", { name: "Completar Preparar examen" }),
   ).toBeChecked();
@@ -82,7 +83,8 @@ test("V01 V02 V03: register, create freely, edit illustration, persist and compl
   await page.getByLabel("Fin", { exact: true }).fill("2026-12-20");
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.getByRole("button", { name: "Horario", exact: true }).click();
+  await page.getByRole("button", { name: "Calendario", exact: true }).click();
+  await page.getByRole("tab", { name: "Horario" }).click();
   await page
     .getByRole("button", { name: "+ Agregar clase", exact: true })
     .click();
@@ -99,7 +101,8 @@ test("V01 V02 V03: register, create freely, edit illustration, persist and compl
     }),
   ).toBeVisible();
   await page.reload();
-  await page.getByRole("button", { name: "Horario", exact: true }).click();
+  await page.getByRole("button", { name: "Calendario", exact: true }).click();
+  await page.getByRole("tab", { name: "Horario" }).click();
   await expect(
     page.getByRole("heading", {
       name: "Análisis numérico propio",

@@ -2,7 +2,12 @@ import { safeMarkup, safeCss, plainJson } from "./policy";
 import type { InteractivePackage } from "../../../packages/resource-sdk/src/fixtures";
 import katex from "katex";
 import "katex/dist/katex.min.css";
+import "@fontsource/alfa-slab-one/latin-400.css";
+import "@fontsource/archivo-narrow/latin-400.css";
+import "@fontsource/archivo-narrow/latin-700.css";
+import "@fontsource/dm-mono/latin-400.css";
 import "./style.css";
+import { mountSandbox, type SandboxPackage } from "./sandbox/host";
 
 const root = document.getElementById("root")!;
 root.innerHTML =
@@ -18,9 +23,12 @@ let animation: ReturnType<typeof setInterval> | undefined;
 let lastPackage: InteractivePackage | null = null;
 const style = document.createElement("style");
 document.head.append(style);
+let sandbox: { destroy(): void } | null = null;
 function stop() {
   worker?.terminate();
   worker = null;
+  sandbox?.destroy();
+  sandbox = null;
   clearTimeout(watchdog);
   clearInterval(animation);
 }
@@ -29,6 +37,26 @@ function fail() {
   resource.inert = true;
   status.textContent =
     "El recurso se detuvo. Reinícialo para volver a intentar.";
+}
+function loadSandbox(pkg: SandboxPackage, state: Record<string, unknown>) {
+  document.body.classList.add("v2");
+  document.getElementById("title")!.textContent = pkg.title;
+  status.textContent = "";
+  resource.inert = false;
+  sandbox = mountSandbox(resource, pkg, state, {
+    state: (value) => post("state", plainJson(value, 40000)),
+    report: (text) => post("report", { text }),
+    ready: () => {
+      status.textContent = "";
+    },
+    fail: () => {
+      // El marco se conserva visible pero inactivo; se avisa y se ofrece reiniciar.
+      sandbox = null;
+      resource.inert = true;
+      status.textContent =
+        "El recurso se detuvo. Reinícialo para volver a intentar.";
+    },
+  });
 }
 function post(type: string, payload: unknown) {
   if (parentOrigin)
@@ -39,12 +67,16 @@ function post(type: string, payload: unknown) {
 }
 // Tell the parent how tall the content is so its frame can fit without inner scrolling.
 let reportedHeight = 0;
+let sizeTimer: ReturnType<typeof setTimeout> | undefined;
 new ResizeObserver(() => {
-  const height = Math.ceil(document.body.getBoundingClientRect().height);
-  if (Math.abs(height - reportedHeight) > 4) {
-    reportedHeight = height;
-    post("size", { height });
-  }
+  clearTimeout(sizeTimer);
+  sizeTimer = setTimeout(() => {
+    const height = Math.ceil(document.body.getBoundingClientRect().height);
+    if (Math.abs(height - reportedHeight) > 6) {
+      reportedHeight = height;
+      post("size", { height });
+    }
+  }, 120);
 }).observe(document.body);
 function event(id: string, event: string, value: unknown) {
   if (!worker) return;
@@ -227,6 +259,18 @@ function apply(command: any) {
 function load(pkg: InteractivePackage, state?: Record<string, unknown>) {
   stop();
   plainJson(pkg, 300 * 1024);
+  document.body.classList.remove("v2");
+  if ((pkg as { schemaVersion: number }).schemaVersion === 2) {
+    lastPackage = pkg;
+    document.getElementById("instructions")!.textContent = pkg.instructions;
+    document.getElementById("alternative")!.textContent = "";
+    style.textContent = "";
+    loadSandbox(
+      pkg as unknown as SandboxPackage,
+      plainJson(state || pkg.initialState) as Record<string, unknown>,
+    );
+    return;
+  }
   if (pkg.schemaVersion !== 1) throw new Error("Unsupported package");
   lastPackage = pkg;
   document.getElementById("title")!.textContent = pkg.title;

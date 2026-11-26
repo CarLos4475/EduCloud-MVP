@@ -16,6 +16,7 @@ test("T24: eliminar una materia pide confirmación y la borra con sus datos", as
   await page.getByLabel("Nombre", { exact: true }).fill("Para borrar");
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
   await page.getByRole("button", { name: /Para borrar.*temas/ }).click();
+  await page.getByRole("tab", { name: "Apuntes" }).click();
   await page.getByLabel("Título de la nota").fill("Apunte");
   await page.getByLabel("Contenido de la nota").fill("Contenido de prueba.");
   await page.getByRole("button", { name: "Guardar nota", exact: true }).click();
@@ -23,6 +24,7 @@ test("T24: eliminar una materia pide confirmación y la borra con sus datos", as
     page.getByText("Listo para estudiar", { exact: true }),
   ).toBeVisible({ timeout: 30000 });
 
+  await page.getByRole("tab", { name: "Resumen" }).click();
   let message = "";
   page.once("dialog", (dialog) => {
     message = dialog.message();

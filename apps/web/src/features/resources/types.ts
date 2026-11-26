@@ -1,5 +1,11 @@
 export type Kind =
-  "summary" | "concepts" | "flashcards" | "quiz" | "interactive";
+  | "summary"
+  | "concepts"
+  | "flashcards"
+  | "quiz"
+  | "interactive"
+  | "exercises"
+  | "connections";
 
 export const KIND_ICONS = {
   summary: "summary",
@@ -7,6 +13,8 @@ export const KIND_ICONS = {
   flashcards: "cards",
   quiz: "quiz",
   interactive: "flask",
+  exercises: "pencil",
+  connections: "compass",
 } as const;
 
 export const KINDS: { id: Kind; label: string; hint: string }[] = [
@@ -29,6 +37,16 @@ export const KINDS: { id: Kind; label: string; hint: string }[] = [
     id: "quiz",
     label: "Cuestionario",
     hint: "Preguntas para ver qué tanto dominas.",
+  },
+  {
+    id: "exercises",
+    label: "Ejercicios",
+    hint: "Resuelve, completa y ordena con pistas.",
+  },
+  {
+    id: "connections",
+    label: "Conexiones",
+    hint: "Une cada idea con lo que le corresponde.",
   },
   {
     id: "interactive",

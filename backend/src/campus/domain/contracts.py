@@ -121,6 +121,29 @@ class InteractivePackageV1(ContractModel):
     ]
 
 
+class InteractivePackageV2(ContractModel):
+    """Recurso interactivo libre: HTML, CSS y JavaScript que corren en un sandbox sin red.
+
+    El kit visual de EduCloud (clases ec-* y la API EC) lo provee el anfitrión; el paquete solo
+    trae el contenido. La seguridad la da el sandbox, no estas comprobaciones estáticas.
+    """
+
+    schema_version: Literal[2]
+    title: str = Field(min_length=1, max_length=160)
+    learning_objective: str = Field(min_length=1, max_length=600)
+    instructions: str = Field(min_length=1, max_length=3000)
+    html: str = Field(min_length=1, max_length=60_000)
+    css: str = Field(default="", max_length=30_000)
+    javascript: str = Field(min_length=1, max_length=90_000)
+    initial_state: dict[str, Any]
+    text_alternative: str = Field(min_length=1, max_length=10_000)
+    study_guide: str = Field(default="", max_length=1_500)
+    source_refs: list[SourceRef] = Field(default_factory=list)
+    requested_capabilities: list[
+        Literal["controls", "math", "plot", "canvas2d", "state"]
+    ] = Field(default_factory=list)
+
+
 PUBLIC_CONTRACTS = (
     ApiError,
     SourceRef,
@@ -131,4 +154,5 @@ PUBLIC_CONTRACTS = (
     JobSpec,
     ContractEvent,
     InteractivePackageV1,
+    InteractivePackageV2,
 )

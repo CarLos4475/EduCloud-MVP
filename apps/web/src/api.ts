@@ -1,4 +1,5 @@
 import { initializeApp } from "firebase/app";
+import { localRequest, localWorkspace } from "./mvp/workspace";
 import {
   browserSessionPersistence,
   connectAuthEmulator,
@@ -7,20 +8,27 @@ import {
 } from "firebase/auth";
 
 export const firebaseApp = initializeApp({
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "demo-key",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "demo-campus",
+  apiKey:
+    (!localWorkspace && import.meta.env.VITE_FIREBASE_API_KEY) || "demo-key",
+  projectId:
+    (!localWorkspace && import.meta.env.VITE_FIREBASE_PROJECT_ID) ||
+    "demo-campus",
   authDomain:
-    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "demo-campus.firebaseapp.com",
+    (!localWorkspace && import.meta.env.VITE_FIREBASE_AUTH_DOMAIN) ||
+    "demo-campus.firebaseapp.com",
 });
 export const auth = getAuth(firebaseApp);
 export const isEmulator =
+  !localWorkspace &&
   import.meta.env.VITE_USE_EMULATORS !== "false" &&
   (import.meta.env.VITE_FIREBASE_PROJECT_ID || "demo-campus").startsWith(
     "demo-",
   );
 if (isEmulator)
   connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
-export const persistenceReady = setPersistence(auth, browserSessionPersistence);
+export const persistenceReady = localWorkspace
+  ? Promise.resolve()
+  : setPersistence(auth, browserSessionPersistence);
 
 export type Row = { id: string; revision: number; [key: string]: unknown };
 export type Page<T> = { items: T[]; nextCursor: string | null };
@@ -29,6 +37,7 @@ export const apiBase =
   import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api/v1";
 
 export async function authorizedFetch(path: string, options: RequestInit = {}) {
+  if (localWorkspace) return localRequest(path, options);
   const token = await auth.currentUser?.getIdToken();
   return fetch(apiBase + path, {
     ...options,

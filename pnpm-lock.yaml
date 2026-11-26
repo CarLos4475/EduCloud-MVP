@@ -27,6 +27,18 @@ importers:
 
   apps/renderer:
     dependencies:
+      '@fontsource/alfa-slab-one':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/archivo-narrow':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/caveat-brush':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/dm-mono':
+        specifier: 5.3.0
+        version: 5.3.0
       css-tree:
         specifier: ^3.2.1
         version: 3.2.1

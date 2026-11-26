@@ -49,11 +49,18 @@ class DeepSeekProvider:
         self.model = os.getenv("DEEPSEEK_MODEL", "deepseek-flash")
         self.transport = transport
 
-    def structured_answer(self, messages, on_progress=None, max_tokens=6000):
-        """Streaming JSON generation for study resources; same safeguards as tutoring."""
-        return self.tutor_answer(messages, on_progress, max_tokens=max_tokens)
+    def structured_answer(
+        self, messages, on_progress=None, max_tokens=6000, json_mode=True
+    ):
+        """Streaming generation for study resources; same safeguards as tutoring.
 
-    def tutor_answer(self, messages, on_progress=None, max_tokens=6000):
+        With json_mode=False the raw text is returned (code sections need no JSON escaping).
+        """
+        return self.tutor_answer(
+            messages, on_progress, max_tokens=max_tokens, json_mode=json_mode
+        )
+
+    def tutor_answer(self, messages, on_progress=None, max_tokens=6000, json_mode=True):
         if not self.key:
             raise ProviderFailure("provider_not_configured", {"total_tokens": 0})
         fragments, usage, completed, stopped, truncated = [], None, False, False, False
@@ -73,7 +80,11 @@ class DeepSeekProvider:
                         "messages": messages,
                         "stream": True,
                         "stream_options": {"include_usage": True},
-                        "response_format": {"type": "json_object"},
+                        **(
+                            {"response_format": {"type": "json_object"}}
+                            if json_mode
+                            else {}
+                        ),
                         "max_tokens": max_tokens,
                     },
                 ) as response,
@@ -116,6 +127,8 @@ class DeepSeekProvider:
                 raise ProviderFailure("provider_interrupted", usage)
             if not usage or "total_tokens" not in usage:
                 raise ProviderFailure("provider_usage_missing")
+            if not json_mode:
+                return "".join(fragments), usage
             return parse_model_json("".join(fragments)), usage
         except httpx.HTTPError:
             raise ProviderFailure("provider_timeout", usage) from None

@@ -1,11 +1,29 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { api } from "../../api";
 import { SafeMarkdown } from "../../components/SafeMarkdown";
-import { Skeleton } from "../../components/Skeleton";
+import { StageProgress } from "../../components/Skeleton";
+import { watch } from "../notify/watch";
+import { Connections, Exercises } from "./Exercises";
+import { Flashcards, Quiz } from "./Practice";
 import type { Citation, ResourceDetail, ResourceVersion } from "./types";
-import { KINDS } from "./types";
+import { KINDS, type Kind } from "./types";
 
 const ACTIVE = ["queued", "running", "cancel_requested"];
+// Cambios que se piden con un toque; cada uno crea una versión nueva.
+const QUICK_CHANGES: Record<Kind, string[]> = {
+  interactive: [
+    "Hazlo más fácil",
+    "Hazlo más desafiante",
+    "Cambia el reto",
+    "Muéstralo con otro ejemplo",
+  ],
+  summary: ["Hazlo más corto", "Agrega ejemplos"],
+  concepts: ["Agrega más ejemplos", "Usa palabras más simples"],
+  flashcards: ["Hazlas más difíciles", "Agrega más tarjetas"],
+  quiz: ["Hazlo más difícil", "Agrega preguntas de aplicación"],
+  exercises: ["Hazlos más difíciles", "Agrega problemas con números"],
+  connections: ["Agrega más pares", "Hazlas más difíciles"],
+};
 const RENDERER_URL =
   import.meta.env.VITE_RENDERER_URL || "http://127.0.0.1:5174";
 
@@ -58,190 +76,13 @@ function Concepts({ content }: { content: any }) {
   );
 }
 
-function Flashcards({
-  content,
-  versionId,
-}: {
-  content: any;
-  versionId: string;
-}) {
-  const cards = content.cards as { front: string; back: string }[];
-  const [index, setIndex] = useState(0);
-  const [flipped, setFlipped] = useState(false);
-  const [marks, setMarks] = useState<Record<string, string>>({});
-  const [note, setNote] = useState("");
-  useEffect(() => {
-    api<{ cards: Record<string, string> }>(
-      `/resources/versions/${versionId}/review`,
-    )
-      .then((review) => setMarks(review.cards))
-      .catch(() => undefined);
-  }, [versionId]);
-  const card = cards[index];
-  const go = (step: number) => {
-    setFlipped(false);
-    setIndex((index + step + cards.length) % cards.length);
-  };
-  const mark = (value: "known" | "again") => {
-    const next = { ...marks, [String(index)]: value };
-    setMarks(next);
-    api(`/resources/versions/${versionId}/review`, {
-      method: "PUT",
-      body: JSON.stringify({ cards: next }),
-    })
-      .then(() => setNote(""))
-      .catch(() => setNote("No pudimos guardar tu repaso. Intenta de nuevo."));
-    go(1);
-  };
-  const known = Object.values(marks).filter((v) => v === "known").length;
-  const again = Object.values(marks).filter((v) => v === "again").length;
-  const current = marks[String(index)];
-  return (
-    <div className="flashcards">
-      <p role="status" className="flash-count">
-        Tarjeta {index + 1} de {cards.length} · Sabidas: {known} · Por repasar:{" "}
-        {again}
-      </p>
-      <button
-        className={`flashcard ${flipped ? "flipped" : ""}`}
-        onClick={() => setFlipped(!flipped)}
-        aria-label={flipped ? "Ver la pregunta" : "Ver la respuesta"}
-      >
-        <small>{flipped ? "Respuesta" : "Pregunta"}</small>
-        <SafeMarkdown text={flipped ? card.back : card.front} />
-        <span className="flash-hint">
-          {current === "known"
-            ? "Marcada como sabida · "
-            : current === "again"
-              ? "Marcada para repasar · "
-              : ""}
-          {flipped ? "Toca para volver" : "Toca para voltear"}
-        </span>
-      </button>
-      {flipped && (
-        <div className="button-row">
-          <button className="secondary" onClick={() => mark("again")}>
-            Repasar otra vez
-          </button>
-          <button className="primary" onClick={() => mark("known")}>
-            La sabía
-          </button>
-        </div>
-      )}
-      <div className="button-row">
-        <button className="text-button" onClick={() => go(-1)}>
-          Anterior
-        </button>
-        <button className="text-button" onClick={() => go(1)}>
-          Saltar
-        </button>
-      </div>
-      {note && (
-        <p role="alert" className="form-error">
-          {note}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function Quiz({ content, versionId }: { content: any; versionId: string }) {
-  const questions = content.questions as {
-    prompt: string;
-    options: string[];
-    correctIndex: number;
-    explanation: string;
-  }[];
-  const [answers, setAnswers] = useState<(number | null)[]>(
-    questions.map(() => null),
-  );
-  const [saved, setSaved] = useState<{ score: number; total: number } | null>(
-    null,
-  );
-  const [problem, setProblem] = useState("");
-  const done = answers.every((a) => a !== null);
-  useEffect(() => {
-    if (!done || saved) return;
-    api<{ score: number; total: number }>(
-      `/resources/versions/${versionId}/attempts`,
-      { method: "POST", body: JSON.stringify({ answers }) },
-    )
-      .then(setSaved)
-      .catch(() => setProblem("No pudimos guardar este intento."));
-  }, [done, saved, answers, versionId]);
-  return (
-    <div className="quiz">
-      {questions.map((q, i) => {
-        const answered = answers[i] !== null;
-        return (
-          <div
-            className="quiz-question"
-            role="group"
-            aria-labelledby={`q-${i}`}
-            key={i}
-          >
-            <div id={`q-${i}`} className="quiz-prompt">
-              <span>{i + 1}.</span> <SafeMarkdown text={q.prompt} />
-            </div>
-            {q.options.map((option, j) => {
-              const state = !answered
-                ? ""
-                : j === q.correctIndex
-                  ? "right"
-                  : answers[i] === j
-                    ? "wrong"
-                    : "";
-              return (
-                <button
-                  key={j}
-                  className={`quiz-option ${state}`}
-                  disabled={answered}
-                  onClick={() =>
-                    setAnswers((a) => a.map((v, k) => (k === i ? j : v)))
-                  }
-                >
-                  <SafeMarkdown text={option} />
-                </button>
-              );
-            })}
-            {answered && (
-              <div role="status" className="quiz-feedback">
-                <strong>
-                  {answers[i] === q.correctIndex ? "¡Bien!" : "Casi."}
-                </strong>
-                <SafeMarkdown text={q.explanation} />
-              </div>
-            )}
-          </div>
-        );
-      })}
-      {done && (
-        <p role="status" className="quiz-score">
-          {saved
-            ? `Acertaste ${saved.score} de ${saved.total}. Quedó guardado en tu progreso.`
-            : problem || "Guardando tu resultado…"}{" "}
-          <button
-            className="text-button"
-            onClick={() => {
-              setAnswers(questions.map(() => null));
-              setSaved(null);
-              setProblem("");
-            }}
-          >
-            Intentarlo otra vez
-          </button>
-        </p>
-      )}
-    </div>
-  );
-}
-
 function Interactive({ version }: { version: ResourceVersion }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const channel = useRef(crypto.randomUUID());
   const sequence = useRef(0);
   const revision = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const pending = useRef<Promise<unknown>>(Promise.resolve());
   const send = (type: string, payload: unknown) =>
     frame.current?.contentWindow?.postMessage(
       {
@@ -286,23 +127,32 @@ function Interactive({ version }: { version: ResourceVersion }) {
       if (event.data.type === "size") {
         const next = Number(event.data.payload?.height);
         if (Number.isFinite(next))
-          setHeight(Math.min(1600, Math.max(320, next)));
+          setHeight((current) => {
+            const target = Math.min(1600, Math.max(320, next));
+            return Math.abs(target - current) > 6 ? target : current;
+          });
       } else if (event.data.type === "state") {
         const state = event.data.payload;
         clearTimeout(timer.current);
         timer.current = setTimeout(() => {
-          api<{ revision: number }>(`/resources/versions/${version.id}/state`, {
-            method: "PUT",
-            body: JSON.stringify({
-              state,
-              expectedRevision: revision.current || undefined,
-            }),
-          })
-            .then((value) => {
-              revision.current = value.revision;
-              setSaved("Tu avance se guarda solo.");
-            })
-            .catch(() => setSaved("No pudimos guardar tu avance."));
+          // Los guardados salen uno tras otro: cada uno usa la revisión del anterior y no chocan entre sí.
+          pending.current = pending.current.then(() =>
+            api<{ revision: number }>(
+              `/resources/versions/${version.id}/state`,
+              {
+                method: "PUT",
+                body: JSON.stringify({
+                  state,
+                  expectedRevision: revision.current || undefined,
+                }),
+              },
+            )
+              .then((value) => {
+                revision.current = value.revision;
+                setSaved("Tu avance se guarda solo.");
+              })
+              .catch(() => setSaved("No pudimos guardar tu avance.")),
+          );
         }, 800);
       }
     };
@@ -310,7 +160,9 @@ function Interactive({ version }: { version: ResourceVersion }) {
     return () => window.removeEventListener("message", listen);
   }, [version.id]);
   return (
-    <div className="interactive">
+    <div
+      className={`interactive${version.content.schemaVersion === 2 ? " v2" : ""}`}
+    >
       <iframe
         ref={frame}
         style={{ height }}
@@ -417,19 +269,34 @@ export function ResourceViewer({
     });
   };
 
-  const askChange = (e: FormEvent) => {
-    e.preventDefault();
-    void run(async () => {
+  const track = () =>
+    watch.track({
+      resourceId: detail.id,
+      subjectId: detail.subjectId,
+      title: detail.title,
+      kind: detail.kind,
+    });
+  // Mientras estás viendo este recurso no hace falta avisarte de que terminó.
+  useEffect(() => {
+    watch.setViewing(detail.id);
+    return () => watch.setViewing(null);
+  }, [detail.id]);
+  const submitChange = (instruction: string) =>
+    run(async () => {
       onChange(
         await api<ResourceDetail>(`/resources/${detail.id}/versions`, {
           method: "POST",
           headers: { "Idempotency-Key": key.current },
-          body: JSON.stringify({ instruction: request, allowGeneral: general }),
+          body: JSON.stringify({ instruction, allowGeneral: general }),
         }),
       );
+      track();
       key.current = crypto.randomUUID();
       setRequest("");
     });
+  const askChange = (e: FormEvent) => {
+    e.preventDefault();
+    void submitChange(request);
   };
 
   const waiting = version && ACTIVE.includes(version.status);
@@ -512,13 +379,16 @@ export function ResourceViewer({
         <p className="quiet-panel">Pediste: “{version.instruction}”</p>
       )}
       {waiting && (
-        <div role="status" className="resource-waiting">
-          <p>
-            {version.status === "queued"
-              ? "Tu recurso está en la fila…"
-              : "Estamos preparando tu recurso…"}
-          </p>
-          <Skeleton lines={5} />
+        <div className="resource-waiting">
+          <StageProgress
+            stage={version.stage}
+            status={version.status}
+            title={
+              version.status === "queued"
+                ? "Tu recurso está en la fila"
+                : "Estamos preparando tu recurso"
+            }
+          />
           <button
             className="text-button"
             onClick={() =>
@@ -567,6 +437,7 @@ export function ResourceViewer({
                   method: "POST",
                   body: JSON.stringify({ acceptPossibleCharge: acceptCharge }),
                 });
+                track();
                 await reload();
               })
             }
@@ -599,12 +470,40 @@ export function ResourceViewer({
               versionId={version.id}
             />
           )}
+          {detail.kind === "exercises" && (
+            <Exercises
+              key={version.id}
+              content={version.content}
+              versionId={version.id}
+            />
+          )}
+          {detail.kind === "connections" && (
+            <Connections
+              key={version.id}
+              content={version.content}
+              versionId={version.id}
+            />
+          )}
           {detail.kind === "interactive" && <Interactive version={version} />}
           <Sources items={version.citations} />
         </>
       )}
       {!waiting && (
         <form className="resource-change" onSubmit={askChange}>
+          {version?.status === "succeeded" && (
+            <div className="quick-changes" aria-label="Cambios rápidos">
+              {QUICK_CHANGES[detail.kind].map((text) => (
+                <button
+                  type="button"
+                  key={text}
+                  disabled={busy}
+                  onClick={() => void submitChange(text)}
+                >
+                  {text}
+                </button>
+              ))}
+            </div>
+          )}
           <label>
             ¿Quieres cambiar algo?
             <textarea

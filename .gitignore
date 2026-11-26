@@ -23,6 +23,7 @@ playwright-report/
 graphify-out/
 .tools/
 .firebase/
+.vercel/
 *-debug.log
 docs/academico/**/revision/
 docs/academico/**/portada.png

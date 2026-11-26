@@ -33,7 +33,8 @@ test("el aviso de primera materia desaparece y una clase puede ir en varios día
   await expect(page.getByText("PRIMERA PARADA")).toHaveCount(0);
 
   // Una clase en varios días: lunes, miércoles y viernes.
-  await page.getByRole("button", { name: "Horario", exact: true }).click();
+  await page.getByRole("button", { name: "Calendario", exact: true }).click();
+  await page.getByRole("tab", { name: "Horario" }).click();
   await page
     .getByRole("button", { name: "+ Agregar clase", exact: true })
     .click();

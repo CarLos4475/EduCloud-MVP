@@ -9,6 +9,7 @@ import {
   signOut,
 } from "firebase/auth";
 import { auth, isEmulator, persistenceReady } from "../../api";
+import { localWorkspace, openLocalSession } from "../../mvp/workspace";
 
 export function Login() {
   const [register, setRegister] = useState(false);
@@ -46,7 +47,9 @@ export function Login() {
   return (
     <main className="login-layout">
       <section className="login-story">
-        <span className="eyebrow">MI CAMPUS · TU ESPACIO DE ESTUDIO</span>
+        <span className="eyebrow">
+          {localWorkspace ? "EDUCLOUD" : "MI CAMPUS"} · TU ESPACIO DE ESTUDIO
+        </span>
         <h1>
           LA SIGUIENTE
           <br />
@@ -74,76 +77,119 @@ export function Login() {
         <h2>{register ? "Empieza por aquí." : "Qué bueno verte."}</h2>
         <p>
           {register
-            ? "Crea tu cuenta y construye tu semestre a tu manera."
+            ? localWorkspace
+              ? "Elige cómo quieres que te llamemos."
+              : "Crea tu cuenta y construye tu semestre a tu manera."
             : "Tus materias y pendientes te esperan."}
         </p>
-        <p className="quiet">Acceso con correo @pcpuma.acatlan.unam.mx.</p>
-        <form onSubmit={submit}>
-          <label>
-            Correo electrónico
-            <input type="email" name="email" autoComplete="email" required />
-          </label>
-          <label>
-            Contraseña
-            <input
-              type="password"
-              name="password"
-              minLength={6}
-              autoComplete={register ? "new-password" : "current-password"}
-              required
-            />
-          </label>
-          <button className="primary" disabled={busy}>
-            {busy
-              ? "Conectando…"
-              : register
-                ? "Crear cuenta"
-                : "Entrar a mi campus"}
-          </button>
-        </form>
-        {error && (
-          <p role="alert" className="error">
-            {error}
-          </p>
+        {localWorkspace ? (
+          register ? (
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                openLocalSession(
+                  String(new FormData(event.currentTarget).get("name") ?? ""),
+                );
+              }}
+            >
+              <label>
+                Tu nombre
+                <input name="name" maxLength={70} required />
+              </label>
+              <button className="primary">Guardar mi espacio</button>
+            </form>
+          ) : (
+            <>
+              <button className="primary" onClick={() => setRegister(true)}>
+                Crear mi espacio
+              </button>
+              <button
+                className="text-button"
+                onClick={() => openLocalSession()}
+              >
+                Entrar a mi espacio
+              </button>
+            </>
+          )
+        ) : (
+          <>
+            <p className="quiet">Acceso con correo @pcpuma.acatlan.unam.mx.</p>
+            <form onSubmit={submit}>
+              <label>
+                Correo electrónico
+                <input
+                  type="email"
+                  name="email"
+                  autoComplete="email"
+                  required
+                />
+              </label>
+              <label>
+                Contraseña
+                <input
+                  type="password"
+                  name="password"
+                  minLength={6}
+                  autoComplete={register ? "new-password" : "current-password"}
+                  required
+                />
+              </label>
+              <button className="primary" disabled={busy}>
+                {busy
+                  ? "Conectando…"
+                  : register
+                    ? "Crear cuenta"
+                    : "Entrar a mi campus"}
+              </button>
+            </form>
+            {error && (
+              <p role="alert" className="error">
+                {error}
+              </p>
+            )}
+            <button
+              className="text-button"
+              onClick={() => {
+                setRegister(!register);
+                setError("");
+              }}
+            >
+              {register ? "Ya tengo una cuenta" : "Es mi primera visita"}
+            </button>
+            <button
+              className="secondary"
+              onClick={async () => {
+                try {
+                  const credential = await signInWithPopup(
+                    auth,
+                    new GoogleAuthProvider(),
+                  );
+                  if (
+                    !credential.user.email
+                      ?.toLowerCase()
+                      .endsWith("@pcpuma.acatlan.unam.mx")
+                  ) {
+                    await signOut(auth);
+                    setError("Usa tu cuenta institucional de Acatlán.");
+                  }
+                } catch {
+                  setError(
+                    "No pudimos conectar con Google. Intenta con correo y contraseña.",
+                  );
+                }
+              }}
+            >
+              Continuar con Google
+            </button>
+            {isEmulator && (
+              <p className="quiet">
+                Modo de prueba: usa cualquier correo @pcpuma.acatlan.unam.mx.
+              </p>
+            )}
+          </>
         )}
-        <button
-          className="text-button"
-          onClick={() => {
-            setRegister(!register);
-            setError("");
-          }}
-        >
-          {register ? "Ya tengo una cuenta" : "Es mi primera visita"}
-        </button>
-        <button
-          className="secondary"
-          onClick={async () => {
-            try {
-              const credential = await signInWithPopup(
-                auth,
-                new GoogleAuthProvider(),
-              );
-              if (
-                !credential.user.email
-                  ?.toLowerCase()
-                  .endsWith("@pcpuma.acatlan.unam.mx")
-              ) {
-                await signOut(auth);
-                setError("Usa tu cuenta institucional de Acatlán.");
-              }
-            } catch {
-              setError(
-                "No pudimos conectar con Google. Intenta con correo y contraseña.",
-              );
-            }
-          }}
-        >
-          Continuar con Google
-        </button>
-        {isEmulator && (
-          <p className="quiet">
-            Modo de prueba: usa cualquier correo @pcpuma.acatlan.unam.mx.
-          </p>
+        {localWorkspace && (
+          <p className="quiet">Tu espacio se guarda en este navegador.</p>
         )}
       </section>
     </main>

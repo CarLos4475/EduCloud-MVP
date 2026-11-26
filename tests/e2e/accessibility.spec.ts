@@ -46,14 +46,27 @@ for (const [label, size] of [
     await page.getByLabel("Nombre", { exact: true }).fill("Accesible");
     await page.getByRole("button", { name: "Guardar", exact: true }).click();
     await page.getByRole("button", { name: /Accesible.*temas/ }).click();
+    await page.getByRole("tab", { name: "Recursos" }).click();
     await expect(page.getByText("Tu progreso")).toBeVisible();
     await audit(page, "materia con recursos y progreso");
     await shot(page, `a11y-${label}-01-materia`);
 
+    await page.getByRole("tab", { name: "Recursos" }).click();
     await page.getByRole("button", { name: "+ Crear un recurso" }).click();
     await expect(page.getByText("¿Qué quieres crear?")).toBeVisible();
+    // La hoja entra con una animación; se audita ya asentada.
+    await page.waitForTimeout(900);
     await audit(page, "formulario de recurso");
     await shot(page, `a11y-${label}-02-formulario`);
+    await page.keyboard.press("Escape");
+
+    await page.keyboard.press("Control+K");
+    await expect(
+      page.getByRole("dialog", { name: "Buscar o ir a" }),
+    ).toBeVisible();
+    await page.waitForTimeout(700);
+    await audit(page, "paleta de búsqueda");
+    await page.keyboard.press("Escape");
 
     await page.getByRole("button", { name: "Mi perfil" }).first().click();
     await expect(page.getByText("Mi pasaporte")).toBeVisible();
@@ -63,8 +76,8 @@ for (const [label, size] of [
 
     for (const [name, title] of [
       ["Inicio", "inicio"],
-      ["Agenda", "agenda"],
-      ["Horario", "horario"],
+      ["Biblioteca", "biblioteca"],
+      ["Calendario", "calendario"],
     ] as const) {
       await page.getByRole("button", { name }).first().click();
       await page.waitForTimeout(500);

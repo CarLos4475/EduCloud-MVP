@@ -96,9 +96,24 @@ def sanity(kind, content):
             )
             and len(content["questions"]) >= 4
         )
+    if kind == "exercises":
+        return len(content["exercises"]) >= 4 and all(
+            e["hints"] and e["explanation"] for e in content["exercises"]
+        )
+    if kind == "connections":
+        return len(content["pairs"]) >= 4
+    # Interactive: version 2 package that draws something beyond plain controls.
+    visual = (
+        any(
+            api in content["javascript"] for api in ("EC.chart", "EC.canvas", "EC.bars")
+        )
+        or "<svg" in content["html"]
+    )
     return (
-        bool(content["html"])
+        content.get("schemaVersion") == 2
+        and bool(content["html"])
         and bool(content["javascript"])
+        and visual
         and bool(content["textAlternative"])
     )
 
@@ -177,6 +192,7 @@ def main():
                     "status": turn["status"],
                     "cited": len(turn["citations"]) > 0,
                     "answered": any(plain(k) in text for k in keywords),
+                    "words": len(turn["text"].split()),
                     "admitsLimit": turn["needsConsent"],
                 }
             )
@@ -195,7 +211,15 @@ def main():
 
         resources = []
         for corpus in CORPORA:
-            for kind in ("summary", "concepts", "flashcards", "quiz", "interactive"):
+            for kind in (
+                "summary",
+                "concepts",
+                "flashcards",
+                "quiz",
+                "exercises",
+                "connections",
+                "interactive",
+            ):
                 before = provider.calls
                 begun = time.monotonic()
                 detail = state.resources.create(
@@ -242,6 +266,10 @@ def main():
             "succeeded": sum(t["status"] == "succeeded" for t in with_notes),
             "cited": sum(t["cited"] for t in with_notes),
             "answeredCorrectly": sum(t["answered"] for t in with_notes),
+            "averageWords": round(
+                sum(t["words"] for t in with_notes) / max(1, len(with_notes))
+            ),
+            "longestAnswerWords": max((t["words"] for t in with_notes), default=0),
         },
         "tutorOutsideNotes": {
             "cases": len(outside),

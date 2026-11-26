@@ -6,6 +6,8 @@ from campus.domain.practice import AttemptInput, ReviewInput, StateInput
 from campus.services.academic import DomainError
 from campus.services.jobs import changed, new_row
 
+REVIEWABLE = ("flashcards", "exercises", "connections")
+ITEMS = {"flashcards": "cards", "exercises": "exercises", "connections": "pairs"}
 MAX_ATTEMPTS = 500
 MAX_STATE_BYTES = 50 * 1024
 STAMPS = [
@@ -28,7 +30,8 @@ class PracticeService:
     def _version(self, uid, version_id, kind=None, ready=True):
         version = self.resources.version(uid, version_id)
         resource = self.resources._resource(uid, version["resourceId"])
-        if kind and resource["kind"] != kind:
+        kinds = (kind,) if isinstance(kind, str) else kind
+        if kinds and resource["kind"] not in kinds:
             raise DomainError(422, "Esta acción no aplica a este tipo de recurso.")
         if ready and (version["status"] != "succeeded" or not version["content"]):
             raise DomainError(409, "Este recurso todavía no está listo.")
@@ -67,7 +70,7 @@ class PracticeService:
         return row
 
     def get_review(self, uid, version_id):
-        self._version(uid, version_id, "flashcards")
+        self._version(uid, version_id, REVIEWABLE)
         return self.records.get(uid, "reviews", version_id) or {
             "versionId": version_id,
             "revision": 0,
@@ -76,10 +79,10 @@ class PracticeService:
 
     def put_review(self, uid, version_id, data):
         data = ReviewInput.model_validate(data).model_dump(by_alias=True)
-        version, resource = self._version(uid, version_id, "flashcards")
-        count = len(version["content"]["cards"])
-        if any(int(key) >= count for key in data["cards"]):
-            raise DomainError(422, "Una de las tarjetas no existe.")
+        version, resource = self._version(uid, version_id, REVIEWABLE)
+        items = version["content"].get(ITEMS[resource["kind"]], [])
+        if any(int(key) >= len(items) for key in data["cards"]):
+            raise DomainError(422, "Uno de los elementos no existe.")
         current = self.records.get(uid, "reviews", version_id)
         row = (
             changed(current, cards=data["cards"])
@@ -89,6 +92,7 @@ class PracticeService:
                 versionId=version_id,
                 resourceId=resource["id"],
                 subjectId=resource["subjectId"],
+                kind=resource["kind"],
                 cards=data["cards"],
             )
         )
@@ -152,12 +156,21 @@ class PracticeService:
         )
         percentages = [round(100 * a["score"] / a["total"]) for a in attempts]
         recent = percentages[-5:]
-        reviews = [
+        all_reviews = [
             r for r in self.records.list(uid, "reviews") if r["subjectId"] == subject_id
+        ]
+        reviews = [
+            r for r in all_reviews if r.get("kind", "flashcards") == "flashcards"
         ]
         known = sum(v == "known" for r in reviews for v in r["cards"].values())
         again = [(r, sum(v == "again" for v in r["cards"].values())) for r in reviews]
         to_review = sum(n for _, n in again)
+        practice_again = [
+            (r, sum(v == "again" for v in r["cards"].values()))
+            for r in all_reviews
+            if r.get("kind") in ("exercises", "connections")
+        ]
+        practice_open = sum(n for _, n in practice_again)
         quiz = next((r for r in ready if r["kind"] == "quiz"), None)
         tips = []
         if not materials:
@@ -173,6 +186,14 @@ class PracticeService:
             tips.append(
                 {
                     "text": f"Tienes {to_review} tarjetas por repasar.",
+                    "resourceId": target["resourceId"],
+                }
+            )
+        if practice_open:
+            target = max(practice_again, key=lambda pair: pair[1])[0]
+            tips.append(
+                {
+                    "text": f"Te quedan {practice_open} ejercicios o conexiones por repasar.",
                     "resourceId": target["resourceId"],
                 }
             )
@@ -224,7 +245,8 @@ class PracticeService:
         cards = [
             r
             for r in self.records.list(uid, "reviews")
-            if sum(v == "known" for v in r["cards"].values())
+            if r.get("kind", "flashcards") == "flashcards"
+            and sum(v == "known" for v in r["cards"].values())
         ]
         known_total = sum(sum(v == "known" for v in r["cards"].values()) for r in cards)
         subjects = [

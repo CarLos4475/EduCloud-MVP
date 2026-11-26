@@ -2,7 +2,10 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { api, authorizedFetch, studyRows, Row } from "../../api";
 import { SafeMarkdown } from "../../components/SafeMarkdown";
 import { Skeleton } from "../../components/Skeleton";
+import { watch } from "../notify/watch";
+import { KIND_ICONS, KINDS, type Kind } from "../resources/types";
 import { ArtImage, Icon, type IconName } from "../../components/Icons";
+import { localWorkspace } from "../../mvp/workspace";
 import {
   Material,
   SourceRef,
@@ -16,9 +19,11 @@ type Conversation = Row & {
   personalityId: string;
   assistanceMode: string;
   sourceMode: string;
+  responseLength?: string;
   materialIds: string[];
   preferences: string;
 };
+type TutorAction = { type: Kind; label: string; instruction: string };
 type Turn = Row & {
   question: string;
   text: string;
@@ -28,6 +33,7 @@ type Turn = Row & {
   jobId: string;
   sequence: number;
   needsConsent: boolean;
+  actions?: TutorAction[];
   usageUnknown: boolean;
   sourcesChanged: boolean;
   partialSources: boolean;
@@ -67,6 +73,11 @@ const MODES: { id: string; label: string; icon: IconName }[] = [
   { id: "solution", label: "Solución completa", icon: "check" },
   { id: "practice", label: "Práctica", icon: "target" },
 ];
+const LENGTHS: { id: string; label: string }[] = [
+  { id: "brief", label: "Cortas" },
+  { id: "normal", label: "Normales" },
+  { id: "detailed", label: "Detalladas" },
+];
 const SUGGESTIONS = [
   "Explícame el tema paso a paso",
   "Dame un ejemplo resuelto",
@@ -78,11 +89,16 @@ export function TutorPanel({
   initialSubjectId,
   onClose,
   onOpenResource,
+  onEditAction,
 }: {
   subjects: Row[];
   initialSubjectId: string | null;
   onClose: () => void;
   onOpenResource: (subjectId: string, resourceId: string) => void;
+  onEditAction: (
+    subjectId: string,
+    action: { kind: string; instruction: string },
+  ) => void;
 }) {
   const [subject, setSubject] = useState(
     initialSubjectId || subjects[0]?.id || "",
@@ -94,6 +110,7 @@ export function TutorPanel({
   const [personalityId, setPersonalityId] = useState("patient");
   const [assistanceMode, setAssistanceMode] = useState("explain");
   const [sourceMode, setSourceMode] = useState("selected_material");
+  const [responseLength, setResponseLength] = useState("brief");
   const [preferences, setPreferences] = useState("");
   const [general, setGeneral] = useState(false);
   const [question, setQuestion] = useState("");
@@ -101,36 +118,71 @@ export function TutorPanel({
   const [error, setError] = useState("");
   const [connection, setConnection] = useState("");
   const [busy, setBusy] = useState(false);
+  const [asking, setAsking] = useState(false);
   const [source, setSource] = useState<SourceRef | null>(null);
   const [acceptCharge, setAcceptCharge] = useState(false);
   const [speaking, setSpeaking] = useState(false);
-  const [made, setMade] = useState<{ turnId: string; id: string } | null>(null);
-  async function makeResource(turn: Turn, kind: string) {
+  const [made, setMade] = useState<{
+    turnId: string;
+    id: string;
+    label: string;
+  } | null>(null);
+  // Crea el recurso en segundo plano; el aviso global dice cuándo está listo.
+  async function startResource(
+    turn: Turn,
+    kind: string,
+    instruction: string,
+    label: string,
+  ) {
     setBusy(true);
     setError("");
     try {
-      const created = await api<{ id: string }>("/resources", {
+      const created = await api<{ id: string; title: string }>("/resources", {
         method: "POST",
         headers: { "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify({
           subjectId: subject,
           kind,
-          instruction: turn.question,
+          instruction,
           materialIds,
           allowGeneral:
             general || sourceMode === "general" || !materialIds.length,
         }),
       });
-      setMade({ turnId: turn.id, id: created.id });
+      watch.track({
+        resourceId: created.id,
+        subjectId: subject,
+        title: created.title,
+        kind,
+      });
+      setMade({ turnId: turn.id, id: created.id, label });
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
     }
   }
+  const makeResource = (turn: Turn, kind: string) =>
+    startResource(
+      turn,
+      kind,
+      turn.question,
+      KINDS.find((k) => k.id === kind)?.label ?? "recurso",
+    );
   const lastRequest = useRef<{ payload: string; key: string } | null>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const pending = turns.find((t) => !terminal(t));
+  const endOfChat = useRef<HTMLDivElement>(null);
+  // Al llegar un mensaje o una respuesta, la conversación baja hasta lo más nuevo.
+  const latest = turns[turns.length - 1];
+  useEffect(() => {
+    if (!latest) return;
+    const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    endOfChat.current?.scrollIntoView({
+      behavior: calm ? "auto" : "smooth",
+      block: "end",
+    });
+  }, [turns.length, latest?.status, latest?.text]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     closeButton.current?.focus();
     return () => {
@@ -152,6 +204,8 @@ export function TutorPanel({
         if (active) {
           setConversations(chats.items);
           setMaterials(files.items);
+          if (localWorkspace)
+            setMaterialIds(files.items.filter((item) => item.status === "ready").map((item) => item.id));
         }
       })
       .catch((e) => {
@@ -247,6 +301,7 @@ export function TutorPanel({
       setPersonalityId(value.personalityId);
       setAssistanceMode(value.assistanceMode);
       setSourceMode(value.sourceMode);
+      setResponseLength(value.responseLength ?? "brief");
       setPreferences(value.preferences);
       setTurns(history.items);
     } catch (e) {
@@ -259,6 +314,7 @@ export function TutorPanel({
     const query = override?.question || question;
     if (!query.trim() || !subject) return;
     setBusy(true);
+    setAsking(true);
     setError("");
     try {
       const context = {
@@ -267,6 +323,7 @@ export function TutorPanel({
         personalityId,
         assistanceMode,
         sourceMode,
+        responseLength,
         materialIds,
         preferences,
       };
@@ -311,6 +368,7 @@ export function TutorPanel({
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      setAsking(false);
       setBusy(false);
     }
   }
@@ -489,6 +547,23 @@ export function TutorPanel({
                   ))}
                 </fieldset>
                 <fieldset className="segmented" disabled={Boolean(pending)}>
+                  <legend>¿Qué tan largas quieres las respuestas?</legend>
+                  {LENGTHS.map((l) => (
+                    <label
+                      key={l.id}
+                      className={`segment ${responseLength === l.id ? "selected" : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name="response-length"
+                        checked={responseLength === l.id}
+                        onChange={() => setResponseLength(l.id)}
+                      />
+                      {l.label}
+                    </label>
+                  ))}
+                </fieldset>
+                <fieldset className="segmented" disabled={Boolean(pending)}>
                   <legend>¿De dónde saca la información?</legend>
                   {[
                     ["selected_material", "Mis apuntes primero", "file"],
@@ -579,7 +654,9 @@ export function TutorPanel({
                   solución completa. Tu conversación queda guardada por materia.
                 </p>
                 <div className="suggestions">
-                  {SUGGESTIONS.map((text) => (
+                  {(localWorkspace && subject === "circuitos"
+                    ? ["¿Qué pasa si aumenta la resistencia?", ...SUGGESTIONS.slice(1)]
+                    : SUGGESTIONS).map((text) => (
                     <button
                       type="button"
                       key={text}
@@ -693,42 +770,84 @@ export function TutorPanel({
                         </button>
                       </div>
                     )}
-                    {t.status === "succeeded" && (
-                      <div className="make-resource">
-                        {made?.turnId === t.id ? (
-                          <p role="status">
-                            ¡Listo! Lo estamos preparando.{" "}
-                            <button
-                              className="text-button"
-                              onClick={() => onOpenResource(subject, made.id)}
-                            >
-                              Verlo en mis recursos
-                            </button>
-                          </p>
-                        ) : (
-                          <>
-                            <span>Llévalo a tu repaso:</span>
-                            {(
-                              [
-                                ["flashcards", "Tarjetas", "cards"],
-                                ["quiz", "Cuestionario", "quiz"],
-                                ["summary", "Resumen", "summary"],
-                              ] as const
-                            ).map(([kind, label, icon]) => (
+                    {t.status === "succeeded" &&
+                      (made?.turnId === t.id ||
+                        (t.actions && t.actions.length > 0) ||
+                        t.citations.length > 0 ||
+                        t.text.length > 400) && (
+                        <div className="make-resource">
+                          {made?.turnId === t.id ? (
+                            <p role="status">
+                              ¡Va! Lo estoy preparando. Te aviso cuando esté
+                              listo, aunque cambies de pantalla.{" "}
                               <button
-                                key={kind}
-                                className="secondary with-icon"
-                                disabled={busy}
-                                onClick={() => void makeResource(t, kind)}
+                                className="text-button"
+                                onClick={() => onOpenResource(subject, made.id)}
                               >
-                                <Icon name={icon} size={16} />
-                                {label}
+                                Verlo en mis recursos
                               </button>
-                            ))}
-                          </>
-                        )}
-                      </div>
-                    )}
+                            </p>
+                          ) : t.actions && t.actions.length > 0 ? (
+                            <div className="tutor-actions">
+                              <span>Te sugiero:</span>
+                              {t.actions.map((action) => (
+                                <div className="tutor-action" key={action.type}>
+                                  <button
+                                    className="secondary with-icon"
+                                    disabled={busy}
+                                    onClick={() =>
+                                      void startResource(
+                                        t,
+                                        action.type,
+                                        action.instruction,
+                                        action.label,
+                                      )
+                                    }
+                                  >
+                                    <Icon
+                                      name={KIND_ICONS[action.type]}
+                                      size={16}
+                                    />
+                                    {action.label}
+                                  </button>
+                                  <button
+                                    className="text-button"
+                                    onClick={() =>
+                                      onEditAction(subject, {
+                                        kind: action.type,
+                                        instruction: action.instruction,
+                                      })
+                                    }
+                                  >
+                                    Editar antes
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <>
+                              <span>Llévalo a tu repaso:</span>
+                              {(
+                                [
+                                  ["flashcards", "Tarjetas", "cards"],
+                                  ["quiz", "Cuestionario", "quiz"],
+                                  ["summary", "Resumen", "summary"],
+                                ] as const
+                              ).map(([kind, label, icon]) => (
+                                <button
+                                  key={kind}
+                                  className="secondary with-icon"
+                                  disabled={busy}
+                                  onClick={() => void makeResource(t, kind)}
+                                >
+                                  <Icon name={icon} size={16} />
+                                  {label}
+                                </button>
+                              ))}
+                            </>
+                          )}
+                        </div>
+                      )}
                     {["failed", "canceled"].includes(t.status) && (
                       <div>
                         <p>
@@ -781,6 +900,8 @@ export function TutorPanel({
                 </div>
               </article>
             ))}
+            {localWorkspace && asking && <Skeleton lines={3} label="Preparando tu respuesta…" />}
+            <div ref={endOfChat} className="chat-end" aria-hidden="true" />
           </div>
           <form
             className={`tutor-composer ${turns.length ? "sticky" : ""}`}

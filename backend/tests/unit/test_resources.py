@@ -86,7 +86,9 @@ class Invalid:
     def __init__(self, raw):
         self.raw, self.calls = raw, 0
 
-    def structured_answer(self, messages, on_progress=None, max_tokens=0):
+    def structured_answer(
+        self, messages, on_progress=None, max_tokens=0, json_mode=True
+    ):
         self.calls += 1
         return self.raw, {"total_tokens": 10}
 
@@ -123,35 +125,98 @@ def test_invalid_output_gets_one_repair_then_fails_without_becoming_current(
     assert stored["content"] is None and stored["failedDraft"]
 
 
+def interactive_context(service):
+    return next(
+        j
+        for j in service.records.list("alice", "jobs")
+        if j["kind"] == "generate_resource"
+    )["payload"]["context"]
+
+
+def good_interactive():
+    from campus.services.resources import parse_interactive_text
+
+    text, _ = TestStudyProvider().structured_answer(
+        [
+            {
+                "content": '{"kind":"interactive","sources":[{"sourceId":"S1","text":"V = I R"}]}'
+            }
+        ],
+        json_mode=False,
+    )
+    return parse_interactive_text(text)
+
+
 @pytest.mark.parametrize(
     "patch",
     [
-        {"javascript": "fetch('https://example.com')"},
-        {"javascript": "document.body.innerHTML = 'x'"},
-        {"html": "<script>alert(1)</script>"},
-        {"html": '<button id="b" onclick="x()">b</button>'},
-        {"html": '<p id="p">hola</p><a href="https://example.com">x</a>'},
+        {"javascript": "EC.save({}); fetch('https://example.com')"},
+        {"javascript": "EC.save({}); localStorage.setItem('a', 'b')"},
+        {"javascript": "EC.save({}); parent.postMessage({}, '*')"},
+        {"javascript": "EC.save({}); new Function('return 1')()"},
+        {"javascript": "EC.save({}); const EC = {};"},
+        {"html": '<div class="ec-stage"><script>alert(1)</script></div>'},
+        {"html": '<button class="ec-btn" onclick="x()">b</button>'},
+        {"html": '<div class="ec-stage"><img src="data:image/png;base64,AAAA"></div>'},
+        {"html": '<div class="ec-stage"><a href="https://example.com">x</a></div>'},
         {"css": "@import url(https://example.com/a.css);"},
+        {"css": ".ec-stage{background:url(https://example.com/a.png)}"},
     ],
 )
 def test_interactive_packages_with_unsafe_code_are_rejected(tmp_path, patch):
     service, _, _, subject, material = build(tmp_path)
     detail = service.create("alice", request(subject, material, "interactive"), "i")
-    raw, _ = TestStudyProvider().structured_answer(
-        [
-            {
-                "content": '{"kind":"interactive","sources":[{"sourceId":"S1","text":"V = I R"}]}'
-            }
-        ]
-    )
-    context = next(
-        j
-        for j in service.records.list("alice", "jobs")
-        if j["kind"] == "generate_resource"
-    )["payload"]["context"]
+    raw = good_interactive()
+    context = interactive_context(service)
+    service._validate("interactive", raw, context)  # the unmodified output is fine
     with pytest.raises(ValueError):
         service._validate("interactive", {**raw, **patch}, context)
     assert detail["kind"] == "interactive"
+
+
+@pytest.mark.parametrize(
+    "patch",
+    [
+        {"javascript": "const x = 1;"},
+        # Ni clases del kit ni API EC: se rechaza. Usar solo una de las dos sí se admite.
+        {"html": "<p>Sin componentes del kit</p>", "javascript": "save({});"},
+        {"javascript": "const r = EC.$('#r'); r.addEventListener('input', () => {});"},
+    ],
+)
+def test_interactive_must_use_the_design_kit_and_save_progress(tmp_path, patch):
+    service, _, _, subject, material = build(tmp_path)
+    service.create("alice", request(subject, material, "interactive"), "q")
+    raw = good_interactive()
+    with pytest.raises(ValueError):
+        service._validate("interactive", {**raw, **patch}, interactive_context(service))
+
+
+def test_sectioned_interactive_output_is_parsed_and_fences_are_tolerated(tmp_path):
+    from campus.services.resources import parse_interactive_text
+
+    text = (
+        "=====META=====\n"
+        '{"title":"T","learningObjective":"O","instructions":"I","textAlternative":"A",'
+        '"initialState":{"r":1},"surprise":"x","citations":[]}\n'
+        '=====HTML=====\n```html\n<div class="ec-stage"></div>\n```\n'
+        "=====CSS=====\n=====JS=====\n```js\nEC.save({});\n```\n=====END=====\n"
+    )
+    parsed = parse_interactive_text(text)
+    assert parsed["html"] == '<div class="ec-stage"></div>'
+    assert parsed["javascript"] == "EC.save({});" and parsed["css"] == ""
+    assert "surprise" not in parsed and parsed["schemaVersion"] == 2
+    with pytest.raises(ValueError):
+        parse_interactive_text(text.replace("=====JS=====", "=====OTRA====="))
+
+
+def test_generated_interactive_is_stored_as_a_v2_package(tmp_path):
+    service, jobs, _, subject, material = build(tmp_path)
+    detail = service.create("alice", request(subject, material, "interactive"), "v2")
+    detail = run_latest(service, jobs, detail)
+    content = detail["versions"][0]["content"]
+    assert content["schemaVersion"] == 2
+    assert "EC.chart" in content["javascript"] and "ec-stage" in content["html"]
+    assert content["studyGuide"]
 
 
 def test_sources_are_required_unless_general_knowledge_is_authorised(tmp_path):
@@ -223,14 +288,18 @@ class Flaky:
         self.failures, self.usage, self.calls = failures, usage, 0
         self.good = TestStudyProvider()
 
-    def structured_answer(self, messages, on_progress=None, max_tokens=0):
+    def structured_answer(
+        self, messages, on_progress=None, max_tokens=0, json_mode=True
+    ):
         from campus.adapters.deepseek import ProviderFailure
 
         self.calls += 1
         if self.calls <= self.failures:
             raise ProviderFailure("provider_interrupted", self.usage)
         first_user = next(m for m in messages if m["role"] == "user")
-        return self.good.structured_answer([first_user], on_progress, max_tokens)
+        return self.good.structured_answer(
+            [first_user], on_progress, max_tokens, json_mode
+        )
 
 
 def test_a_cut_off_answer_is_retried_once_only_when_its_cost_is_known(tmp_path):
@@ -249,3 +318,99 @@ def test_a_cut_off_answer_is_retried_once_only_when_its_cost_is_known(tmp_path):
     with pytest.raises(ProviderFailure):
         service.run(jobs.claim("alice", created["versions"][0]["jobId"]))
     assert unknown.calls == 1
+
+
+def test_exercises_and_connections_are_validated_and_stored(tmp_path):
+    service, jobs, _, subject, material = build(tmp_path)
+    for kind, key in (("exercises", "ex"), ("connections", "co")):
+        detail = run_latest(
+            service,
+            jobs,
+            service.create("alice", request(subject, material, kind), key),
+        )
+        version = detail["versions"][0]
+        assert version["status"] == "succeeded"
+        assert version["content"]["exercises" if kind == "exercises" else "pairs"]
+
+
+@pytest.mark.parametrize(
+    ("kind", "raw"),
+    [
+        (
+            "exercises",
+            {
+                "exercises": [
+                    {
+                        "type": "complete",
+                        "prompt": "Sin hueco para completar",
+                        "answer": "x",
+                        "hints": ["p"],
+                        "explanation": "e",
+                    }
+                ]
+            },
+        ),
+        (
+            "exercises",
+            {
+                "exercises": [
+                    {
+                        "type": "order",
+                        "prompt": "Ordena",
+                        "steps": ["uno", "uno", "dos"],
+                        "hints": ["p"],
+                        "explanation": "e",
+                    }
+                ]
+            },
+        ),
+        (
+            "connections",
+            {
+                "pairs": [
+                    {"left": "A", "right": "x", "why": "w"},
+                    {"left": "A", "right": "y", "why": "w"},
+                    {"left": "B", "right": "z", "why": "w"},
+                ]
+            },
+        ),
+    ],
+)
+def test_badly_formed_exercises_and_connections_are_rejected(tmp_path, kind, raw):
+    service, _, _, subject, material = build(tmp_path)
+    service.create("alice", request(subject, material, kind), "bad")
+    context = next(
+        j
+        for j in service.records.list("alice", "jobs")
+        if j["kind"] == "generate_resource"
+    )["payload"]["context"]
+    with pytest.raises(ValueError):
+        service._validate(
+            kind,
+            {**raw, "citations": [{"sourceId": "S1", "quote": "V = I R"}]},
+            context,
+        )
+
+
+def test_sketch_resources_are_valid_without_an_explicit_save(tmp_path):
+    from campus.services.resources import parse_interactive_text
+
+    service, _, _, subject, material = build(tmp_path)
+    service.create("alice", request(subject, material, "interactive"), "s")
+    text, _ = TestStudyProvider().structured_answer(
+        [
+            {
+                "content": '{"kind":"interactive","instruction":"Quiero que dibuje yo",'
+                '"sources":[{"sourceId":"S1","text":"V = I R"}]}'
+            }
+        ],
+        json_mode=False,
+    )
+    raw = parse_interactive_text(text)
+    assert "EC.sketch" in raw["javascript"]
+    context = interactive_context(service)
+    service._validate("interactive", raw, context)
+    # EC.sketch o EC.keep guardan el avance por su cuenta; sin ninguna de las tres se rechaza.
+    only_sketch = raw["javascript"].replace("EC.save(EC.state);", "")
+    assert "EC.save" not in only_sketch
+    service._validate("interactive", {**raw, "javascript": only_sketch}, context)

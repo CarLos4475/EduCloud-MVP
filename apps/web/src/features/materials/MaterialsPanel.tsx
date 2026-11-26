@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { api, authorizedFetch, studyRows, Row } from "../../api";
 import { Skeleton } from "../../components/Skeleton";
 import { ArtImage } from "../../components/Icons";
+import { attachLocalFile, localWorkspace } from "../../mvp/workspace";
 
 export type SourceRef = {
   materialId: string;
@@ -32,6 +33,7 @@ const labels: Record<string, string> = {
   needs_review: "Revisa la transcripción",
   ready: "Listo para estudiar",
   partial: "Cobertura parcial",
+  local: "Adjunto en este navegador",
   failed: "No se pudo procesar",
 };
 export function referenceLabel(locator: string) {
@@ -300,8 +302,17 @@ export function MaterialsPanel({
   }
   async function upload(file: File, displayName?: string) {
     await perform(async () => {
-      if (!file.size || file.size > 20 * 1024 * 1024)
-        throw new Error("El archivo debe tener entre 1 byte y 20 MiB.");
+      const limit = localWorkspace && (file.type.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(file.name)) ? 10 : 20;
+      if (!file.size || file.size > limit * 1024 * 1024)
+        throw new Error("El archivo debe tener entre 1 byte y " + limit + " MiB.");
+      if (localWorkspace) {
+        attachLocalFile(subjectId, file, displayName);
+        setNote("");
+        setNoteTitle("");
+        setNotice("Material adjunto. El tutor puede consultar los apuntes marcados como listos.");
+        await refresh();
+        return;
+      }
       const bytes = await file.arrayBuffer();
       const hash = Array.from(
         new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
@@ -386,8 +397,9 @@ export function MaterialsPanel({
         <span className="eyebrow">TUS APUNTES PRIMERO</span>
       </div>
       <p>
-        PDF, presentaciones, imágenes y notas. Las transcripciones dudosas
-        necesitan tu revisión antes de usarse con el tutor.
+        {localWorkspace
+          ? "Adjunta PDF, presentaciones, imágenes o notas. El tutor consulta los apuntes marcados como listos para estudiar."
+          : "PDF, presentaciones, imágenes y notas. Las transcripciones dudosas necesitan tu revisión antes de usarse con el tutor."}
       </p>
       {error && (
         <p role="alert" className="error-banner">
@@ -397,9 +409,9 @@ export function MaterialsPanel({
       {notice && <p role="status">{notice}</p>}
       <div className="material-upload-grid">
         <label className="upload-drop">
-          Subir material
+          {localWorkspace ? "Adjuntar material" : "Subir material"}
           <input
-            aria-label="Subir material"
+            aria-label={localWorkspace ? "Adjuntar material" : "Subir material"}
             type="file"
             accept=".pdf,.pptx,.txt,.md,.png,.jpg,.jpeg,.webp"
             disabled={busy}
@@ -455,21 +467,23 @@ export function MaterialsPanel({
                 {m.status === "failed" && m.error === "processing_canceled"
                   ? "Cancelado"
                   : labels[m.status] || "Procesando"}
+                {m.status === "local" && typeof m.size === "number" &&
+                  " · " + new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 }).format(m.size / 1024) + " KB"}
               </p>
             </div>
-            <button
+            {m.status !== "local" && <button
               className="secondary"
               onClick={() => void open(m)}
               disabled={busy}
             >
               Abrir material
-            </button>
+            </button>}
           </article>
         ))}
       </div>
       {!materials.length && (
         <div className="quiet-panel empty-materials">
-          <ArtImage src="/art/empty-materials.png" className="empty-art">
+          <ArtImage src="/art/empty-subject-notes.png" className="empty-art">
             {null}
           </ArtImage>
           <p>
@@ -506,6 +520,7 @@ export function MaterialsPanel({
                       {(
                         {
                           text: "Texto extraído",
+                          ready: "Disponible",
                           reviewed: "Confirmado",
                           needs_review: "Por revisar",
                           failed: "Sin extraer",
@@ -520,11 +535,14 @@ export function MaterialsPanel({
                 <textarea
                   rows={8}
                   value={text}
+                  readOnly={localWorkspace}
                   onChange={(e) => setText(e.target.value)}
                   maxLength={30000}
                 />
               </label>
-              <p>
+              {localWorkspace ? (
+                <p>Este apunte está disponible para consultarlo con el tutor.</p>
+              ) : <><p>
                 Confirma el texto con el original, especialmente signos,
                 exponentes y fórmulas. Guardar crea una versión nueva.
               </p>
@@ -572,7 +590,7 @@ export function MaterialsPanel({
                 >
                   Ver original y texto
                 </button>
-              </div>
+              </div></>}
             </form>
           ) : (
             <p>

@@ -76,3 +76,86 @@ svg {
 #resource .katex-display {
   margin: 12px 0;
 }
+
+/* Recursos interactivos (versión 2): el marco ocupa todo el ancho y el kit pone el diseño */
+body.v2 {
+  padding: 4px 4px 8px;
+  font-family: "Archivo Narrow", Arial, sans-serif;
+  font-size: 18px;
+  background: transparent;
+}
+body.v2 header small,
+body.v2 #status:empty,
+body.v2 #alternative {
+  display: none;
+}
+body.v2 h1 {
+  margin: 0 0 6px;
+  font-family: "Alfa Slab One", Georgia, serif;
+  font-weight: 400;
+  font-size: 1.6rem;
+  line-height: 1.12;
+}
+body.v2 #instructions {
+  margin: 0 0 14px;
+  max-width: 62ch;
+  font-size: 1.05rem;
+}
+body.v2 #status {
+  font-family: "DM Mono", monospace;
+}
+body.v2 #resource {
+  position: relative;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+body.v2 #resource div {
+  margin: 0;
+}
+.sandbox-frame {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  transition: height 0.25s ease;
+}
+.sandbox-loading {
+  position: absolute;
+  inset: 0 12px 0 0;
+  display: grid;
+  grid-template-rows: 2fr 1fr;
+  gap: 14px;
+  pointer-events: none;
+}
+.sandbox-loading i {
+  display: block;
+  border: 2px solid #122245;
+  background: linear-gradient(
+      100deg,
+      transparent 30%,
+      #ffffff99 50%,
+      transparent 70%
+    )
+    #e9dec7;
+  background-size: 220% 100%;
+  animation: sandbox-shimmer 1.3s ease-in-out infinite;
+}
+.sandbox-loading i:nth-child(3) {
+  display: none;
+}
+@keyframes sandbox-shimmer {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -120% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sandbox-loading i {
+    animation: none;
+  }
+}

@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
+    "dev:mvp": "vite --mode mvp --host 127.0.0.1 --port 5173 --strictPort",
     "build": "tsc --noEmit && vite build",
+    "build:mvp": "tsc --noEmit && vite build --mode mvp",
     "check": "tsc --noEmit",
     "test:unit": "vitest run"
   },

@@ -6,11 +6,13 @@ import re
 
 from pydantic import ValidationError
 
-from campus.adapters.deepseek import ProviderFailure
-from campus.domain.contracts import InteractivePackageV1
+from campus.adapters.deepseek import ProviderFailure, parse_model_json
+from campus.domain.contracts import InteractivePackageV1, InteractivePackageV2
 from campus.domain.resources import (
     KIND_LABELS,
     ConceptsContent,
+    ConnectionsContent,
+    ExercisesContent,
     FlashcardsContent,
     GeneratedCitation,
     QuizContent,
@@ -28,6 +30,8 @@ CONTENT_MODELS = {
     "concepts": ConceptsContent,
     "flashcards": FlashcardsContent,
     "quiz": QuizContent,
+    "exercises": ExercisesContent,
+    "connections": ConnectionsContent,
 }
 RETRYABLE_FAILURES = {
     "provider_interrupted",
@@ -43,6 +47,87 @@ FORBIDDEN_MARKUP = re.compile(
 FORBIDDEN_JS = re.compile(
     r"\b(window|document|fetch|eval|XMLHttpRequest|WebSocket|importScripts|globalThis|Function|import)\b"
 )
+
+
+SECTION = re.compile(r"^=====(META|HTML|CSS|JS|END)=====[ \t]*$", re.MULTILINE)
+V2_MARKUP = re.compile(
+    r"<\s*(script|style|iframe|object|embed|form|link|meta|base|img|audio|video|source|track)\b",
+    re.IGNORECASE,
+)
+V2_JS = re.compile(
+    r"\b(fetch|XMLHttpRequest|WebSocket|EventSource|RTCPeerConnection|WebTransport|Worker|SharedWorker|"
+    r"importScripts|iframe|RTCDataChannel|eval|localStorage|sessionStorage|indexedDB|postMessage|sendBeacon)\b|"
+    r"\bnew\s+Function\b|\bimport\s*\(|document\s*\.\s*cookie|\b(const|let|var|function|class)\s+EC\b"
+)
+
+
+def _code(body: str) -> str:
+    """Models sometimes fence code even when told not to."""
+    body = body.strip("\r\n")
+    body = re.sub(r"^\s*```[a-zA-Z]*\s*\n", "", body)
+    return re.sub(r"\n\s*```\s*$", "", body).strip("\r\n")
+
+
+def parse_interactive_text(text: str) -> dict:
+    """Split the sectioned answer (META JSON + HTML + CSS + JS) into one package dict."""
+    pieces = SECTION.split(text)
+    sections: dict[str, str] = {}
+    for name, body in zip(pieces[1::2], pieces[2::2], strict=False):
+        if name != "END":
+            sections.setdefault(name, body)
+    for needed in ("META", "HTML", "JS"):
+        if not sections.get(needed, "").strip():
+            raise ValueError(f"Falta la sección {needed} con el formato indicado.")
+    meta = parse_model_json(_code(sections["META"]))
+    if not isinstance(meta, dict):
+        raise TypeError("META debe ser un objeto JSON.")
+    allowed = (
+        "title",
+        "learningObjective",
+        "instructions",
+        "textAlternative",
+        "studyGuide",
+        "initialState",
+        "citations",
+    )
+    return {
+        **{k: meta[k] for k in allowed if k in meta},
+        "schemaVersion": 2,
+        "html": _code(sections["HTML"]),
+        "css": _code(sections.get("CSS", "")),
+        "javascript": _code(sections["JS"]),
+    }
+
+
+def check_interactive_v2(package):
+    """Static checks and quality gates. The sandbox, not these checks, is the security boundary."""
+    if V2_MARKUP.search(package.html) or re.search(
+        r"\son\w+\s*=", package.html, re.IGNORECASE
+    ):
+        raise ValueError(
+            "El HTML contiene elementos o atributos no permitidos (scripts, estilos, marcos, imágenes o eventos en línea)."
+        )
+    if re.search(
+        r"(https?:|//\s*[a-z0-9.-]+\.[a-z]{2,}|javascript:|\bdata:|@import|url\s*\(\s*(?![\"']?#))",
+        package.html + package.css,
+        re.IGNORECASE,
+    ):
+        raise ValueError("El recurso no puede cargar contenido externo.")
+    if re.search(r"</?\s*script", package.css, re.IGNORECASE):
+        raise ValueError("El CSS no puede contener scripts.")
+    if V2_JS.search(package.javascript):
+        raise ValueError(
+            "El JavaScript usa APIs no disponibles (red, almacenamiento, eval, postMessage) o redefine EC."
+        )
+    if "EC." not in package.javascript and "ec-" not in package.html:
+        raise ValueError(
+            "Usa el kit de diseño: componentes con clases ec-* o la API EC (EC.chart, EC.lesson, EC.count, EC.save…)."
+        )
+    # EC.sketch con id y EC.keep guardan el avance por su cuenta.
+    if not any(k in package.javascript for k in ("EC.save", "EC.keep", "EC.sketch")):
+        raise ValueError("Guarda el avance con EC.save en cada cambio de control.")
+    if len(json.dumps(package.model_dump(by_alias=True)).encode()) > 300 * 1024:
+        raise ValueError("El paquete excede 300 KiB.")
 
 
 def check_interactive(package):
@@ -219,7 +304,7 @@ class ResourceService:
                 system_prompt(resource["kind"])
                 + json.dumps(context, ensure_ascii=False)
             ).encode()
-        ) + (14000 if resource["kind"] == "interactive" else 8500)
+        ) + (34000 if resource["kind"] == "interactive" else 8500)
 
         def additions(job):
             number = len(self._versions(uid, resource["id"])) + 1
@@ -326,14 +411,23 @@ class ResourceService:
         if public and public[-1]["status"] in ("queued", "running", "cancel_requested"):
             raise DomainError(409, "Ya hay una versión generándose para este recurso.")
         ready = [v for v in public if v["status"] == "succeeded"]
-        previous = (
-            {
-                "number": ready[-1]["number"],
-                "content": json.dumps(ready[-1]["content"], ensure_ascii=False)[:8000],
-            }
-            if ready
-            else None
-        )
+        previous = None
+        if ready:
+            content = ready[-1]["content"] or {}
+            if resource["kind"] == "interactive" and content.get("schemaVersion") == 2:
+                # Editing code needs the whole program, not a truncated JSON dump.
+                previous = {
+                    "number": ready[-1]["number"],
+                    "title": content.get("title", ""),
+                    "html": content.get("html", "")[:30000],
+                    "css": content.get("css", "")[:10000],
+                    "javascript": content.get("javascript", "")[:40000],
+                }
+            else:
+                previous = {
+                    "number": ready[-1]["number"],
+                    "content": json.dumps(content, ensure_ascii=False)[:8000],
+                }
         context = self._context(
             uid,
             resource["subjectId"],
@@ -367,6 +461,8 @@ class ResourceService:
 
     # --- worker --------------------------------------------------------------
     def _validate(self, kind, raw, context):
+        if kind == "interactive" and isinstance(raw, str):
+            raw = parse_interactive_text(raw)
         if not isinstance(raw, dict):
             raise TypeError("La respuesta debe ser un objeto JSON.")
         raw = dict(raw)
@@ -390,18 +486,34 @@ class ResourceService:
         ):
             raise ValueError("Incluye al menos una cita literal de las fuentes.")
         if kind == "interactive":
-            package = InteractivePackageV1.model_validate(
+            if raw.get("schemaVersion") == 1:
+                legacy = InteractivePackageV1.model_validate(
+                    {**raw, "css": raw.get("css") or "", "sourceRefs": citations}
+                )
+                check_interactive(legacy)
+                return (
+                    legacy.model_dump(by_alias=True),
+                    citations,
+                    legacy.text_alternative,
+                )
+            package = InteractivePackageV2.model_validate(
                 {
                     **raw,
+                    "schemaVersion": 2,
                     "css": raw.get("css") or "",
+                    "studyGuide": raw.get("studyGuide") or "",
+                    "requestedCapabilities": raw.get("requestedCapabilities")
+                    or ["controls", "state"],
                     "sourceRefs": citations,
                 }
             )
-            check_interactive(package)
+            check_interactive_v2(package)
             content = package.model_dump(by_alias=True)
             return content, citations, package.text_alternative
         parsed = CONTENT_MODELS[kind].model_validate(raw)
         content = parsed.model_dump(by_alias=True, exclude_none=True)
+        if kind in ("exercises", "connections"):
+            parsed.check()
         if kind == "quiz":
             for question in parsed.questions:
                 if question.correct_index >= len(question.options):
@@ -433,7 +545,8 @@ class ResourceService:
                     on_progress=lambda: self.jobs.checkpoint(
                         uid, job["id"], token, "receiving", 60
                     ),
-                    max_tokens=13000 if kind == "interactive" else 8000,
+                    max_tokens=32000 if kind == "interactive" else 8000,
+                    json_mode=kind != "interactive",
                 )
             except ProviderFailure as failure:
                 # A cut-off or unreadable answer is retried once, only when its cost is known.
@@ -450,7 +563,7 @@ class ResourceService:
                     messages.append(
                         {
                             "role": "user",
-                            "content": "Tu respuesta anterior se cortó o no era JSON válido. Responde de nuevo con el JSON completo y más breve.",
+                            "content": "Tu respuesta anterior se cortó o no tenía el formato pedido. Responde de nuevo con el recurso completo en el mismo formato y más breve.",
                         }
                     )
                     self.jobs.checkpoint(uid, job["id"], token, "repairing", 80)
@@ -463,14 +576,26 @@ class ResourceService:
                 break
             except (ValueError, TypeError, ValidationError) as error:
                 last_error = str(error)[:700]
-                draft = json.dumps(raw, ensure_ascii=False)[:20000]
+                draft = (
+                    raw if isinstance(raw, str) else json.dumps(raw, ensure_ascii=False)
+                )[:60000]
+                interactive = kind == "interactive"
                 messages += [
-                    {"role": "assistant", "content": draft[:6000]},
+                    {
+                        "role": "assistant",
+                        "content": draft[: 30000 if interactive else 6000],
+                    },
                     {
                         "role": "user",
-                        "content": "El JSON no es válido: "
-                        + last_error
-                        + "\nDevuelve el JSON completo corregido, con las mismas reglas.",
+                        "content": (
+                            "El recurso no es válido: "
+                            + last_error
+                            + "\nDevuelve el recurso COMPLETO corregido en el mismo formato con secciones (META, HTML, CSS, JS, END), con las mismas reglas."
+                            if interactive
+                            else "El JSON no es válido: "
+                            + last_error
+                            + "\nDevuelve el JSON completo corregido, con las mismas reglas."
+                        ),
                     },
                 ]
                 self.jobs.checkpoint(uid, job["id"], token, "repairing", 80)

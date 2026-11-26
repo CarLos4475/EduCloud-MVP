@@ -10,10 +10,11 @@ async function shot(page: Page, name: string) {
 }
 
 async function create(page: Page, kind: string) {
+  await page.getByRole("tab", { name: "Recursos" }).click();
   await page.getByRole("button", { name: "+ Crear un recurso" }).click();
-  await page.getByText(kind, { exact: true }).first().click();
-  await page.getByLabel("Ley de Ohm", { exact: true }).check();
-  await page.getByRole("button", { name: "Crear recurso" }).click();
+  const sheet = page.getByRole("dialog", { name: "¿Qué quieres crear?" });
+  await sheet.getByText(kind, { exact: true }).click();
+  await sheet.getByRole("button", { name: "Crear", exact: true }).click();
 }
 
 test("H4: práctica, progreso, repaso y pasaporte", async ({ page }) => {
@@ -31,6 +32,7 @@ test("H4: práctica, progreso, repaso y pasaporte", async ({ page }) => {
   await page.getByLabel("Nombre", { exact: true }).fill("Circuitos H4");
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
   await page.getByRole("button", { name: /Circuitos H4.*temas/ }).click();
+  await page.getByRole("tab", { name: "Apuntes" }).click();
   await page.getByLabel("Título de la nota").fill("Ley de Ohm");
   await page
     .getByLabel("Contenido de la nota")
@@ -44,17 +46,32 @@ test("H4: práctica, progreso, repaso y pasaporte", async ({ page }) => {
   ).toBeVisible({ timeout: 30000 });
 
   // Antes de practicar, el progreso lo sugiere.
+  await page.getByRole("tab", { name: "Recursos" }).click();
   await expect(page.getByText("Tu progreso")).toBeVisible();
-  await expect(page.getByText(/Crea un resumen/)).toBeVisible();
+  await expect(
+    page.getByRole("listitem").filter({ hasText: /Crea un resumen/ }),
+  ).toBeVisible();
   await shot(page, "h4-01-progreso-inicial");
 
   // Cuestionario: el servidor guarda y califica.
   await create(page, "Cuestionario");
-  await expect(page.getByText(/^1\. /)).toBeVisible({ timeout: 120000 });
-  const questions = page.locator(".quiz-question");
-  const total = await questions.count();
-  for (let i = 0; i < total; i++)
-    await questions.nth(i).locator(".quiz-option").first().click();
+  await expect(page.getByText(/Pregunta 1 de/)).toBeVisible({
+    timeout: 120000,
+  });
+  const total = Number(
+    (await page.getByText(/Pregunta 1 de \d+/).innerText()).match(
+      /de (\d+)/,
+    )![1],
+  );
+  for (let i = 0; i < total; i++) {
+    await page.locator(".quiz-option").first().click();
+    await expect(page.locator(".quiz-feedback")).toBeVisible();
+    await page
+      .getByRole("button", {
+        name: i === total - 1 ? "Ver mi resultado" : "Continuar",
+      })
+      .click();
+  }
   await expect(
     page.getByText(/Acertaste \d+ de \d+\. Quedó guardado/),
   ).toBeVisible();
@@ -81,8 +98,10 @@ test("H4: práctica, progreso, repaso y pasaporte", async ({ page }) => {
 
   // Experimento: el avance se conserva al volver a abrirlo.
   await create(page, "Experimento interactivo");
-  const frame = page.frameLocator(".interactive iframe");
-  await expect(frame.getByText("Listo para explorar.")).toBeVisible({
+  const frame = page
+    .frameLocator(".interactive iframe")
+    .frameLocator("iframe.sandbox-frame");
+  await expect(frame.locator("body.ec-ready")).toBeVisible({
     timeout: 180000,
   });
   const slider = frame.locator('input[type="range"]').first();
@@ -94,7 +113,7 @@ test("H4: práctica, progreso, repaso y pasaporte", async ({ page }) => {
   const saved = await slider.inputValue();
   await page.getByRole("button", { name: /Volver a mis recursos/ }).click();
   await page.locator(".resource-card", { hasText: /interactivo/i }).click();
-  await expect(frame.getByText("Listo para explorar.")).toBeVisible({
+  await expect(frame.locator("body.ec-ready")).toBeVisible({
     timeout: 30000,
   });
   await expect(frame.locator('input[type="range"]').first()).toHaveValue(saved);

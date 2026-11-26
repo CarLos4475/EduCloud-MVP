@@ -38,6 +38,7 @@ test("H2: upload a note, ask with sources, open a citation and recover conversat
   await page.getByLabel("Nombre", { exact: true }).fill("Circuitos H2");
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
   await page.getByRole("button", { name: /Circuitos H2.*temas/ }).click();
+  await page.getByRole("tab", { name: "Apuntes" }).click();
   await page.getByLabel("Título de la nota").fill("Ley de Ohm");
   await page
     .getByLabel("Contenido de la nota")
@@ -104,6 +105,7 @@ test("H2: an image requires review before it can become a source", async ({
   await page.getByLabel("Nombre", { exact: true }).fill("Física visual");
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
   await page.getByRole("button", { name: /Física visual.*temas/ }).click();
+  await page.getByRole("tab", { name: "Apuntes" }).click();
   await page
     .getByLabel("Subir material", { exact: true })
     .setInputFiles(resolve("tests/fixtures/materials/ohm.png"));

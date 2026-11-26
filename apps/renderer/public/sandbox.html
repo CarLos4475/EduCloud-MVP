@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Recurso interactivo</title>
+  </head>
+  <body class="ec-hidden">
+    <main id="ec-root"></main>
+    <script>
+      /* Arranque mínimo del sandbox. Este documento no tiene origen (iframe con sandbox sin
+         allow-same-origin) y su política de contenido bloquea red, marcos y recursos externos.
+         El anfitrión le envía una sola vez el paquete a ejecutar. */
+      (function () {
+        var started = false;
+        [
+          "fetch",
+          "XMLHttpRequest",
+          "WebSocket",
+          "EventSource",
+          "RTCPeerConnection",
+          "webkitRTCPeerConnection",
+          "WebTransport",
+          "Worker",
+          "SharedWorker",
+          "open",
+        ].forEach(function (name) {
+          try {
+            Object.defineProperty(window, name, {
+              value: undefined,
+              configurable: false,
+            });
+          } catch (_) {}
+        });
+        try {
+          Object.defineProperty(navigator, "sendBeacon", { value: undefined });
+        } catch (_) {}
+
+        function run(code) {
+          var s = document.createElement("script");
+          s.textContent = code;
+          document.head.appendChild(s);
+        }
+        addEventListener("message", function (e) {
+          var d = e.data;
+          if (
+            started ||
+            e.source !== parent ||
+            !d ||
+            d.ec !== 1 ||
+            d.t !== "boot"
+          )
+            return;
+          started = true;
+          try {
+            var style = document.createElement("style");
+            style.textContent = String(d.css);
+            document.head.appendChild(style);
+            window.__EC_STATE = d.state;
+            document.getElementById("ec-root").innerHTML = String(d.html);
+            run(String(d.kit));
+            run(String(d.js));
+            window.EC.__start();
+          } catch (err) {
+            parent.postMessage(
+              { ec: 1, t: "error", message: String(err && err.message) },
+              "*",
+            );
+          }
+        });
+        parent.postMessage({ ec: 1, t: "hello" }, "*");
+      })();
+    </script>
+  </body>
+</html>

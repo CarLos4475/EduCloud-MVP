@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 import { deleteUser, signOut } from "firebase/auth";
 import { api, auth } from "../../api";
+import { closeLocalSession, localWorkspace } from "../../mvp/workspace";
 
 export function DataPanel() {
   const [typed, setTyped] = useState("");
@@ -22,6 +23,10 @@ export function DataPanel() {
       return;
     }
     // Quitar también el acceso; si Google pide volver a entrar, solo cerramos sesión.
+    if (localWorkspace) {
+      closeLocalSession();
+      return;
+    }
     try {
       if (auth.currentUser) await deleteUser(auth.currentUser);
     } catch {
@@ -33,9 +38,9 @@ export function DataPanel() {
     <section className="panel data-panel" aria-labelledby="data-title">
       <h2 id="data-title">Tus datos</h2>
       <p>
-        Lo que guardas aquí es solo tuyo y se queda mientras uses tu cuenta. Al
-        eliminar una materia se borran al momento sus temas, apuntes,
-        conversaciones y recursos.
+        {localWorkspace
+          ? "Tus materias, conversaciones y progreso se guardan en este navegador. Puedes borrar todo el espacio desde aquí."
+          : "Lo que guardas aquí es solo tuyo y se queda mientras uses tu cuenta. Al eliminar una materia se borran al momento sus temas, apuntes, conversaciones y recursos."}
       </p>
       <details>
         <summary>Borrar todo lo que he guardado</summary>

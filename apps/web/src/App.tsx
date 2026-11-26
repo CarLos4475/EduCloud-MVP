@@ -7,6 +7,13 @@ import {
   sendEmailVerification,
 } from "firebase/auth";
 import { allRows, api, auth, isEmulator, Row } from "./api";
+import {
+  closeLocalSession,
+  hasLocalSession,
+  localWorkspace,
+  observeLocalSession,
+  type LocalSession,
+} from "./mvp/workspace";
 import { Login } from "./features/auth/Login";
 import { Editor, EditorState } from "./features/academic/Editor";
 import { Illustration } from "./components/Illustration";
@@ -19,6 +26,13 @@ import {
   PassportSummary,
 } from "./features/progress/PassportPanel";
 import { ResourcesPanel } from "./features/resources/ResourcesPanel";
+import { ResourceToasts } from "./features/notify/ResourceToasts";
+import { CreateSheet, type CreateDraft } from "./features/create/CreateSheet";
+import { CommandPalette } from "./features/create/CommandPalette";
+import { ContinueSection } from "./features/home/Continue";
+import { Library } from "./features/library/Library";
+import type { Kind } from "./features/resources/types";
+import { watch } from "./features/notify/watch";
 const TutorPanel = lazy(() =>
   import("./features/tutor/TutorPanel").then((module) => ({
     default: module.TutorPanel,
@@ -44,15 +58,102 @@ const weekdays = [
   "Domingo",
 ];
 
+/* Direcciones reales: Atrás, recargar y compartir enlaces funcionan. */
+const TABS = [
+  {
+    id: "resumen",
+    label: "Resumen",
+    path: "",
+    art: "summary",
+    icon: "compass",
+  },
+  {
+    id: "apuntes",
+    label: "Apuntes",
+    path: "apuntes",
+    art: "notes",
+    icon: "file",
+  },
+  {
+    id: "recursos",
+    label: "Recursos",
+    path: "recursos",
+    art: "resources",
+    icon: "flask",
+  },
+  {
+    id: "pendientes",
+    label: "Pendientes",
+    path: "pendientes",
+    art: "pending",
+    icon: "check",
+  },
+] as const;
+type Tab = (typeof TABS)[number]["id"];
+type Route = {
+  nav: string;
+  selected: string | null;
+  tab: Tab;
+  resource: string | null;
+};
+const NAV_PATHS: Record<string, string> = {
+  home: "/",
+  subjects: "/materias",
+  library: "/biblioteca",
+  agenda: "/calendario",
+  schedule: "/calendario/horario",
+  profile: "/perfil",
+};
+function parsePath(pathname: string): Route {
+  const [first, id, section, resource] = pathname.split("/").filter(Boolean);
+  const tab: Tab =
+    TABS.find((t) => t.path && t.path === section)?.id ?? "resumen";
+  // Agenda y horario viven juntos en «Calendario»; las direcciones viejas siguen funcionando.
+  const nav =
+    first === "calendario"
+      ? id === "horario"
+        ? "schedule"
+        : "agenda"
+      : first === "horario"
+        ? "schedule"
+        : first === "agenda"
+          ? "agenda"
+          : (Object.keys(NAV_PATHS).find(
+              (key) => NAV_PATHS[key] === `/${first}`,
+            ) ?? "home");
+  if (nav !== "subjects")
+    return { nav, selected: null, tab: "resumen", resource: null };
+  return {
+    nav,
+    selected: id ?? null,
+    tab: id ? tab : "resumen",
+    resource: id && section === "recursos" ? (resource ?? null) : null,
+  };
+}
+function buildPath(
+  nav: string,
+  selected: string | null,
+  tab: Tab,
+  resource: string | null,
+) {
+  const base = NAV_PATHS[nav] ?? "/";
+  if (nav !== "subjects" || !selected) return base;
+  if (resource) return `${base}/${selected}/recursos/${resource}`;
+  const part = TABS.find((t) => t.id === tab)?.path;
+  return part ? `${base}/${selected}/${part}` : `${base}/${selected}`;
+}
+
 export function App() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | LocalSession | null>(null);
   const [initializing, setInitializing] = useState(true);
   const [verified, setVerified] = useState(false);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<Data>(empty);
   const [profile, setProfile] = useState<Row | null>(null);
-  const [nav, setNav] = useState("home");
-  const [selected, setSelected] = useState<string | null>(null);
+  const [start] = useState(() => parsePath(window.location.pathname));
+  const [nav, setNav] = useState(start.nav);
+  const [selected, setSelected] = useState<string | null>(start.selected);
+  const [tab, setTab] = useState<Tab>(start.tab);
   const [query, setQuery] = useState("");
   const [archived, setArchived] = useState(false);
   const [error, setError] = useState("");
@@ -61,29 +162,82 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [tutor, setTutor] = useState(false);
-  const [openResource, setOpenResource] = useState<string | null>(null);
+  const [openResource, setOpenResource] = useState<string | null>(
+    start.resource,
+  );
+  const [palette, setPalette] = useState(false);
+  const [sheet, setSheet] = useState<CreateDraft | null>(null);
   const session = useRef(0);
 
-  useEffect(
-    () =>
-      onAuthStateChanged(auth, (value) => {
+  useEffect(() => {
+    function onSession(value: User | LocalSession | null) {
         session.current++;
         setData(empty());
         setProfile(null);
         setUser(value);
         setInitializing(false);
-        setVerified(Boolean(value?.emailVerified) || isEmulator);
-        setSelected(null);
+        setVerified(value && "local" in value ? true : Boolean(value?.emailVerified) || isEmulator);
+        // Al recargar con la misma sesión se conserva el lugar; al salir se vuelve al inicio.
+        const route = parsePath(value ? window.location.pathname : "/");
+        setSelected(route.selected);
+        setTab(route.tab);
         setEditor(null);
         setTutor(false);
-        setNav("home");
+        setPalette(false);
+        setSheet(null);
+        watch.reset();
+        setNav(route.nav);
+        setOpenResource(route.resource);
+        if (!value && window.location.pathname !== "/")
+          window.history.replaceState({}, "", "/");
         setError("");
-      }),
-    [],
-  );
+    }
+    return localWorkspace
+      ? observeLocalSession(onSession)
+      : onAuthStateChanged(auth, onSession);
+  }, []);
+
+  function leaveWorkspace() {
+    if (localWorkspace) closeLocalSession();
+    else void signOut(auth);
+  }
+
+  // La dirección sigue a la pantalla; Atrás y Adelante hacen el camino inverso.
+  useEffect(() => {
+    if (!user) return;
+    const path = buildPath(nav, selected, tab, openResource);
+    if (path !== window.location.pathname)
+      window.history.pushState({}, "", path);
+  }, [user, nav, selected, tab, openResource]);
+  useEffect(() => {
+    const onPop = () => {
+      const route = parsePath(window.location.pathname);
+      setNav(route.nav);
+      setSelected(route.selected);
+      setTab(route.tab);
+      setOpenResource(route.resource);
+      setTutor(false);
+      setPalette(false);
+      setSheet(null);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  useEffect(() => {
+    if (!user) return;
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSheet(null);
+        setPalette((open) => !open);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [user]);
 
   async function load() {
-    if (!auth.currentUser) return;
+    if (localWorkspace ? !hasLocalSession() : !auth.currentUser) return;
     const epoch = session.current;
     setLoading(true);
     try {
@@ -190,15 +344,38 @@ export function App() {
     try {
       await api(`/subjects/${subject.id}`, { method: "DELETE" });
       setSelected(null);
+      setOpenResource(null);
       await load();
       setNotice("Materia eliminada.");
     } catch (e) {
       setError((e as Error).message);
     }
   }
+  // Abre un recurso desde donde sea: avisos, paleta, tutor o la hoja de crear.
+  function showResource(subjectId: string, resourceId: string) {
+    setTutor(false);
+    setPalette(false);
+    setNav("subjects");
+    setSelected(subjectId);
+    setTab("recursos");
+    setOpenResource(resourceId);
+  }
+  // Abre una materia en su resumen o en la pestaña que se indique.
+  function openSubject(subjectId: string, next: Tab = "resumen") {
+    setNav("subjects");
+    setSelected(subjectId);
+    setTab(next);
+    setOpenResource(null);
+  }
+  function createHere(draft: CreateDraft = {}) {
+    setPalette(false);
+    setSheet({ subjectId: selected ?? undefined, ...draft });
+  }
   function navigate(key: string) {
     setNav(key);
     setSelected(null);
+    setTab("resumen");
+    setOpenResource(null);
     setQuery("");
     setNotice("");
   }
@@ -218,7 +395,7 @@ export function App() {
       ),
     );
   const displayName = String(
-    profile?.displayName || user?.email?.split("@")[0] || "Estudiante",
+    profile?.displayName || (user && "email" in user && user.email?.split("@")[0]) || "Estudiante",
   );
 
   function subjectCards(rows: Row[]) {
@@ -228,10 +405,7 @@ export function App() {
           <button
             key={s.id}
             className={`subject-card accent-${s.accentId || "gold"}`}
-            onClick={() => {
-              setNav("subjects");
-              setSelected(s.id);
-            }}
+            onClick={() => openSubject(String(s.id))}
           >
             <div>
               <h3>{String(s.name)}</h3>
@@ -355,7 +529,7 @@ export function App() {
       </main>
     );
   if (!user) return <Login />;
-  if (!user.email?.toLowerCase().endsWith("@pcpuma.acatlan.unam.mx"))
+  if ("email" in user && !user.email?.toLowerCase().endsWith("@pcpuma.acatlan.unam.mx"))
     return (
       <main className="startup">
         <h1>Tu cuenta institucional.</h1>
@@ -367,7 +541,7 @@ export function App() {
         </button>
       </main>
     );
-  if (!verified)
+  if ("email" in user && !verified)
     return (
       <main className="startup">
         <h1>Verifica tu correo.</h1>
@@ -404,30 +578,31 @@ export function App() {
         <button
           className="brand"
           onClick={() => navigate("home")}
-          aria-label="Mi Campus, inicio"
+          aria-label={localWorkspace ? "EduCloud, inicio" : "Mi Campus, inicio"}
         >
-          MI
-          <br />
-          CAMPUS
-          <span>
-            <ArtImage src="/art/logo.png">✦</ArtImage>
-          </span>
+          {localWorkspace ? <>EDU<br />CLOUD</> : <>MI<br />CAMPUS</>}
         </button>
         <nav aria-label="Navegación principal">
           {[
             ["home", "home", "Inicio"],
             ["subjects", "book", "Materias"],
-            ["agenda", "calendar", "Agenda"],
-            ["schedule", "clock", "Horario"],
+            ["library", "book", "Biblioteca"],
+            ["agenda", "calendar", "Calendario"],
             ["profile", "user", "Mi perfil"],
           ].map(([key, icon, label]) => (
             <button
               key={key}
-              className={nav === key ? "active" : ""}
+              className={
+                nav === key || (key === "agenda" && nav === "schedule")
+                  ? "active"
+                  : ""
+              }
               onClick={() => navigate(key)}
             >
               <span aria-hidden="true" className="nav-icon">
-                <ArtImage src={`/art/icons/nav-${key}.png`}>
+                <ArtImage
+                  src={`/art/icons/nav-${key === "agenda" ? "calendar" : key}.png`}
+                >
                   <Icon name={icon as IconName} size={22} />
                 </ArtImage>
               </span>
@@ -443,7 +618,7 @@ export function App() {
             <strong>{displayName}</strong>
             <small>{String(profile?.career || "Mi espacio")}</small>
           </div>
-          <button className="text-button" onClick={() => void signOut(auth)}>
+          <button className="text-button" onClick={leaveWorkspace}>
             Salir
           </button>
         </div>
@@ -468,9 +643,36 @@ export function App() {
                   setQuery(e.target.value);
                   setNav("subjects");
                   setSelected(null);
+                  setOpenResource(null);
                 }}
               />
             </label>
+            <button
+              className="palette-button"
+              onClick={() => {
+                setSheet(null);
+                setPalette(true);
+              }}
+              aria-label="Buscar o ir a"
+              title="Buscar o ir a (Ctrl K)"
+            >
+              <ArtImage
+                src="/art/icons/action-search.png"
+                className="action-art"
+              >
+                <Icon name="compass" size={18} />
+              </ArtImage>
+              <kbd>Ctrl K</kbd>
+            </button>
+            <button className="create-button" onClick={() => createHere()}>
+              <ArtImage
+                src="/art/icons/action-create.png"
+                className="action-art"
+              >
+                {null}
+              </ArtImage>
+              + Crear
+            </button>
             <button
               className="primary tutor-button"
               onClick={() => setTutor(true)}
@@ -545,6 +747,12 @@ export function App() {
                   </div>
                 </section>
               )}
+            <ContinueSection
+              subjects={data.subjects.filter((s) => !s.archived)}
+              onResource={showResource}
+              onSubject={(id, next) => openSubject(id, next)}
+              onCreate={(id) => createHere({ subjectId: id })}
+            />
             <div className="home-columns">
               <section>
                 <div className="section-heading">
@@ -620,6 +828,15 @@ export function App() {
           </>
         )}
 
+        {nav === "library" && (
+          <Library
+            key={user.uid}
+            subjects={data.subjects.filter((s) => !s.archived)}
+            onOpen={showResource}
+            onCreate={() => createHere()}
+          />
+        )}
+
         {nav === "subjects" && !subject && (
           <>
             <div className="page-heading">
@@ -666,10 +883,17 @@ export function App() {
 
         {nav === "subjects" && subject && (
           <>
-            <button className="text-button" onClick={() => setSelected(null)}>
+            <button
+              className="text-button"
+              onClick={() => {
+                setSelected(null);
+                setTab("resumen");
+                setOpenResource(null);
+              }}
+            >
               ← Todas mis materias
             </button>
-            <section className="subject-hero">
+            <section className="subject-hero compact">
               <div>
                 <span className="eyebrow">TU ESPACIO PARA ENTENDER</span>
                 <h1>{String(subject.name)}</h1>
@@ -678,131 +902,256 @@ export function App() {
                     subject.description || "Cada pregunta abre un camino.",
                   )}
                 </p>
-                <div className="button-row">
-                  <button
-                    className="secondary"
-                    onClick={() =>
-                      setEditor({ collection: "subjects", row: subject })
-                    }
-                  >
-                    Editar materia
-                  </button>
-                  <button
-                    className="text-button"
-                    onClick={() =>
-                      void update("subjects", subject, {
-                        archived: !subject.archived,
-                      })
-                    }
-                  >
-                    {subject.archived
-                      ? "Restaurar materia"
-                      : "Archivar materia"}
-                  </button>
-                  <button
-                    className="text-button danger"
-                    onClick={() => void removeSubject(subject)}
-                  >
-                    Eliminar materia
-                  </button>
-                </div>
               </div>
               <Illustration id={String(subject.illustrationId)} />
             </section>
-            <section className="panel">
-              <div className="section-heading">
-                <h2>Temas</h2>
-                <button
-                  className="text-button"
-                  onClick={() =>
-                    setEditor({ collection: "topics", subjectId: subject.id })
-                  }
-                >
-                  + Agregar tema
-                </button>
-              </div>
-              {data.topics
-                .filter((t) => t.subjectId === subject.id)
-                .sort((a, b) => Number(a.order) - Number(b.order))
-                .map((t, i) => (
-                  <div className="topic-row" key={t.id}>
-                    <span className="topic-number">
-                      {String(i + 1).padStart(2, "0")}
+            <div
+              className="subject-tabs"
+              role="tablist"
+              aria-label="Secciones de la materia"
+            >
+              {TABS.map((t) => {
+                const count =
+                  t.id === "pendientes"
+                    ? data.agenda.filter(
+                        (a) =>
+                          a.subjectId === subject.id && a.status !== "done",
+                      ).length
+                    : 0;
+                return (
+                  <button
+                    key={t.id}
+                    role="tab"
+                    id={`tab-${t.id}`}
+                    aria-selected={tab === t.id}
+                    aria-controls="subject-panel"
+                    className={tab === t.id ? "on" : ""}
+                    onClick={() => {
+                      setTab(t.id);
+                      setOpenResource(null);
+                    }}
+                  >
+                    <span className="tab-icon" aria-hidden="true">
+                      <ArtImage src={`/art/icons/tab-${t.art}.png`}>
+                        <Icon name={t.icon} size={18} />
+                      </ArtImage>
                     </span>
-                    <div>
-                      <h3>{String(t.title)}</h3>
-                      <p className="quiet">
-                        {((t.prerequisiteIds as string[]) || []).length
-                          ? `Antes: ${(t.prerequisiteIds as string[]).map((id) => String(data.topics.find((other) => other.id === id)?.title || "Tema")).join(", ")}`
-                          : "Sin prerrequisitos"}
-                      </p>
+                    {t.label}
+                    {count > 0 && <span className="tab-count">{count}</span>}
+                  </button>
+                );
+              })}
+            </div>
+            <div
+              id="subject-panel"
+              role="tabpanel"
+              aria-labelledby={`tab-${tab}`}
+              className="subject-panel"
+            >
+              {tab === "resumen" && (
+                <>
+                  <div className="subject-quick">
+                    <button
+                      className="primary"
+                      onClick={() => createHere({ subjectId: subject.id })}
+                    >
+                      + Crear un recurso
+                    </button>
+                    <button
+                      className="secondary"
+                      onClick={() => setTab("apuntes")}
+                    >
+                      Subir apuntes
+                    </button>
+                    <button
+                      className="secondary"
+                      onClick={() => setTutor(true)}
+                    >
+                      ✦ Preguntar al tutor
+                    </button>
+                  </div>
+                  <section className="panel">
+                    <div className="section-heading">
+                      <h2>Temas</h2>
+                      <button
+                        className="text-button"
+                        onClick={() =>
+                          setEditor({
+                            collection: "topics",
+                            subjectId: subject.id,
+                          })
+                        }
+                      >
+                        + Agregar tema
+                      </button>
                     </div>
+                    {data.topics
+                      .filter((t) => t.subjectId === subject.id)
+                      .sort((a, b) => Number(a.order) - Number(b.order))
+                      .map((t, i) => (
+                        <div className="topic-row" key={t.id}>
+                          <span className="topic-number">
+                            {String(i + 1).padStart(2, "0")}
+                          </span>
+                          <div>
+                            <h3>{String(t.title)}</h3>
+                            <p className="quiet">
+                              {((t.prerequisiteIds as string[]) || []).length
+                                ? `Antes: ${(t.prerequisiteIds as string[]).map((id) => String(data.topics.find((other) => other.id === id)?.title || "Tema")).join(", ")}`
+                                : "Sin prerrequisitos"}
+                            </p>
+                          </div>
+                          <button
+                            className="text-button"
+                            onClick={() =>
+                              setEditor({
+                                collection: "topics",
+                                row: t,
+                                subjectId: subject.id,
+                              })
+                            }
+                          >
+                            Editar
+                          </button>
+                          <button
+                            className="icon-button"
+                            aria-label={`Eliminar ${t.title}`}
+                            onClick={() => void remove("topics", t)}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    {!data.topics.some((t) => t.subjectId === subject.id) && (
+                      <p>
+                        Divide la materia en temas pequeños para encontrar por
+                        dónde empezar.
+                      </p>
+                    )}
+                  </section>
+                  <section className="subject-manage">
+                    <button
+                      className="secondary"
+                      onClick={() =>
+                        setEditor({ collection: "subjects", row: subject })
+                      }
+                    >
+                      Editar materia
+                    </button>
+                    <button
+                      className="text-button"
+                      onClick={() =>
+                        void update("subjects", subject, {
+                          archived: !subject.archived,
+                        })
+                      }
+                    >
+                      {subject.archived
+                        ? "Restaurar materia"
+                        : "Archivar materia"}
+                    </button>
+                    <button
+                      className="text-button danger"
+                      onClick={() => void removeSubject(subject)}
+                    >
+                      Eliminar materia
+                    </button>
+                  </section>
+                </>
+              )}
+
+              {tab === "pendientes" && (
+                <section>
+                  <div className="section-heading">
+                    <h2>Pendientes de la materia</h2>
                     <button
                       className="text-button"
                       onClick={() =>
                         setEditor({
-                          collection: "topics",
-                          row: t,
+                          collection: "agenda",
                           subjectId: subject.id,
                         })
                       }
                     >
-                      Editar
-                    </button>
-                    <button
-                      className="icon-button"
-                      aria-label={`Eliminar ${t.title}`}
-                      onClick={() => void remove("topics", t)}
-                    >
-                      ×
+                      + Agregar
                     </button>
                   </div>
-                ))}
-              {!data.topics.some((t) => t.subjectId === subject.id) && (
-                <p>
-                  Divide la materia en temas pequeños para encontrar por dónde
-                  empezar.
-                </p>
+                  {agendaRows(
+                    data.agenda.filter((a) => a.subjectId === subject.id),
+                  )}
+                  {!data.agenda.some((a) => a.subjectId === subject.id) && (
+                    <p className="quiet">
+                      Anota aquí tareas y exámenes de esta materia.
+                    </p>
+                  )}
+                </section>
               )}
-            </section>
-            <section>
-              <div className="section-heading">
-                <h2>Pendientes de la materia</h2>
+
+              {tab === "apuntes" && (
+                <MaterialsPanel
+                  key={`${user.uid}:${subject.id}`}
+                  subjectId={subject.id}
+                  topics={data.topics.filter((t) => t.subjectId === subject.id)}
+                  onTopicsChanged={() => void load()}
+                />
+              )}
+
+              {tab === "recursos" && (
+                <ResourcesPanel
+                  key={`resources:${user.uid}:${subject.id}`}
+                  subjectId={subject.id}
+                  resourceId={openResource}
+                  onResourceChange={setOpenResource}
+                  onCreate={() => createHere({ subjectId: subject.id })}
+                />
+              )}
+            </div>
+          </>
+        )}
+
+        {(nav === "agenda" || nav === "schedule") && (
+          <>
+            <div className="page-heading">
+              <span className="eyebrow">
+                {nav === "agenda" ? "UN PASO ANTES" : "TU SEMANA, TU RITMO"}
+              </span>
+              <h1>Mi calendario.</h1>
+              <p>
+                {nav === "agenda"
+                  ? "Haz espacio para las cosas que importan."
+                  : "Bloques semanales en la zona horaria de cada clase."}
+              </p>
+            </div>
+            <div
+              className="subject-tabs calendar-tabs"
+              role="tablist"
+              aria-label="Secciones del calendario"
+            >
+              {(
+                [
+                  ["agenda", "Pendientes"],
+                  ["schedule", "Horario"],
+                ] as const
+              ).map(([key, label]) => (
                 <button
-                  className="text-button"
-                  onClick={() =>
-                    setEditor({ collection: "agenda", subjectId: subject.id })
-                  }
+                  key={key}
+                  role="tab"
+                  aria-selected={nav === key}
+                  className={nav === key ? "on" : ""}
+                  onClick={() => setNav(key)}
                 >
-                  + Agregar
+                  {label}
+                  {key === "agenda" && pending.length > 0 && (
+                    <span className="tab-count">{pending.length}</span>
+                  )}
                 </button>
-              </div>
-              {agendaRows(
-                data.agenda.filter((a) => a.subjectId === subject.id),
-              )}
-            </section>
-            <MaterialsPanel
-              key={`${user.uid}:${subject.id}`}
-              subjectId={subject.id}
-              topics={data.topics.filter((t) => t.subjectId === subject.id)}
-              onTopicsChanged={() => void load()}
-            />
-            <ResourcesPanel
-              key={`resources:${user.uid}:${subject.id}`}
-              subjectId={subject.id}
-              openId={openResource}
-              onOpened={() => setOpenResource(null)}
-            />
+              ))}
+            </div>
           </>
         )}
 
         {nav === "agenda" && (
           <>
-            <div className="page-heading">
-              <span className="eyebrow">UN PASO ANTES</span>
-              <h1>Mi agenda.</h1>
-              <p>Haz espacio para las cosas que importan.</p>
-            </div>
             <div className="section-heading">
               <h2>Pendientes y exámenes</h2>
               <button
@@ -830,11 +1179,6 @@ export function App() {
 
         {nav === "schedule" && (
           <>
-            <div className="page-heading">
-              <span className="eyebrow">TU SEMANA, TU RITMO</span>
-              <h1>Mi horario.</h1>
-              <p>Bloques semanales en la zona horaria de cada clase.</p>
-            </div>
             <div className="section-heading">
               <h2>Semana habitual</h2>
               <button
@@ -978,13 +1322,6 @@ export function App() {
             <DataPanel />
           </>
         )}
-        <footer className="workspace-footer">
-          <span>MI CAMPUS · UN TEMA A LA VEZ</span>
-          <span>
-            {data.subjects.filter((s) => !s.archived).length} materias ·{" "}
-            {pending.length} pendientes
-          </span>
-        </footer>
       </main>
       {editor && (
         <Editor
@@ -1001,6 +1338,50 @@ export function App() {
           }}
         />
       )}
+      <ResourceToasts onOpen={showResource} />
+      {!tutor && !sheet && !palette && !editor && (
+        <button
+          className="tutor-fab"
+          onClick={() => setTutor(true)}
+          aria-label={
+            subject
+              ? `Preguntar al tutor sobre ${String(subject.name)}`
+              : "Preguntar al tutor"
+          }
+        >
+          <span className="tutor-fab-face" aria-hidden="true">
+            <ArtImage src="/art/icons/action-tutor.png">
+              <Icon name="spark" size={26} />
+            </ArtImage>
+          </span>
+          <span className="tutor-fab-label" aria-hidden="true">
+            {subject
+              ? `Preguntar sobre ${String(subject.name)}`
+              : "Preguntar al tutor"}
+          </span>
+        </button>
+      )}
+      {sheet && (
+        <CreateSheet
+          subjects={data.subjects.filter((x) => !x.archived)}
+          draft={sheet}
+          onClose={() => setSheet(null)}
+          onCreated={({ subjectId, resourceId }) =>
+            showResource(subjectId, resourceId)
+          }
+        />
+      )}
+      {palette && (
+        <CommandPalette
+          subjects={data.subjects.filter((x) => !x.archived)}
+          onClose={() => setPalette(false)}
+          onGo={navigate}
+          onSubject={(id) => openSubject(id)}
+          onCreate={(kind?: Kind) => createHere({ kind })}
+          onTutor={() => setTutor(true)}
+          onResource={showResource}
+        />
+      )}
       {tutor && (
         <Suspense
           fallback={
@@ -1014,11 +1395,14 @@ export function App() {
             subjects={data.subjects.filter((s) => !s.archived)}
             initialSubjectId={selected}
             onClose={() => setTutor(false)}
-            onOpenResource={(subjectId, resourceId) => {
+            onOpenResource={showResource}
+            onEditAction={(subjectId, action) => {
               setTutor(false);
-              setNav("subjects");
-              setSelected(subjectId);
-              setOpenResource(resourceId);
+              setSheet({
+                subjectId,
+                kind: action.kind as Kind,
+                instruction: action.instruction,
+              });
             }}
           />
         </Suspense>

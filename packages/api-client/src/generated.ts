@@ -75,6 +75,7 @@ export interface ConversationInput {
   assistanceMode?: "explain" | "hints" | "solution" | "practice";
   materialIds?: (string)[];
   sourceMode?: "selected_material" | "general";
+  responseLength?: "brief" | "normal" | "detailed";
   preferences?: string;
 }
 
@@ -85,6 +86,7 @@ export interface ConversationRead {
   assistanceMode?: "explain" | "hints" | "solution" | "practice";
   materialIds?: (string)[];
   sourceMode?: "selected_material" | "general";
+  responseLength?: "brief" | "normal" | "detailed";
   preferences?: string;
   id: string;
   revision: number;
@@ -99,6 +101,7 @@ export interface ConversationUpdate {
   assistanceMode?: "explain" | "hints" | "solution" | "practice";
   materialIds?: (string)[];
   sourceMode?: "selected_material" | "general";
+  responseLength?: "brief" | "normal" | "detailed";
   preferences?: string;
   expectedRevision: number;
 }
@@ -264,7 +267,7 @@ export interface ResourceDetail {
   id: string;
   revision: number;
   subjectId: string;
-  kind: "summary" | "concepts" | "flashcards" | "quiz" | "interactive";
+  kind: "summary" | "concepts" | "flashcards" | "quiz" | "interactive" | "exercises" | "connections";
   title: string;
   materialIds: (string)[];
   archived?: boolean;
@@ -278,7 +281,7 @@ export interface ResourceDetail {
 
 export interface ResourceInput {
   subjectId: string;
-  kind: "summary" | "concepts" | "flashcards" | "quiz" | "interactive";
+  kind: "summary" | "concepts" | "flashcards" | "quiz" | "interactive" | "exercises" | "connections";
   title?: string;
   instruction?: string;
   materialIds?: (string)[];
@@ -289,7 +292,7 @@ export interface ResourceRead {
   id: string;
   revision: number;
   subjectId: string;
-  kind: "summary" | "concepts" | "flashcards" | "quiz" | "interactive";
+  kind: "summary" | "concepts" | "flashcards" | "quiz" | "interactive" | "exercises" | "connections";
   title: string;
   materialIds: (string)[];
   archived?: boolean;
@@ -436,6 +439,7 @@ export interface TurnRead {
   text: string;
   citations: (CitationRead)[];
   needsConsent: boolean;
+  actions?: (TutorAction)[];
   sourcesChanged: boolean;
   partialSources?: boolean;
   sourceMode: string;
@@ -446,6 +450,12 @@ export interface TurnRead {
   usageUnknown: boolean;
   sequence: number;
   usage?: Record<string, unknown> | null;
+}
+
+export interface TutorAction {
+  type: "flashcards" | "quiz" | "exercises" | "connections" | "interactive" | "summary" | "concepts";
+  label: string;
+  instruction: string;
 }
 
 export interface UpdateAgendaInput {
@@ -581,4 +591,19 @@ export interface InteractivePackageV1 {
   textAlternative: string;
   sourceRefs?: (SourceRef)[];
   requestedCapabilities: ("controls" | "math" | "plot" | "canvas2d" | "state")[];
+}
+
+export interface InteractivePackageV2 {
+  schemaVersion: 2;
+  title: string;
+  learningObjective: string;
+  instructions: string;
+  html: string;
+  css?: string;
+  javascript: string;
+  initialState: Record<string, unknown>;
+  textAlternative: string;
+  studyGuide?: string;
+  sourceRefs?: (SourceRef)[];
+  requestedCapabilities?: ("controls" | "math" | "plot" | "canvas2d" | "state")[];
 }

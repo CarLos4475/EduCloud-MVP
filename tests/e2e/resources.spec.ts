@@ -25,6 +25,7 @@ async function prepare(page: Page) {
   await page.getByLabel("Nombre", { exact: true }).fill("Circuitos H3");
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
   await page.getByRole("button", { name: /Circuitos H3.*temas/ }).click();
+  await page.getByRole("tab", { name: "Apuntes" }).click();
   await page.getByLabel("Título de la nota").fill("Ley de Ohm");
   await page
     .getByLabel("Contenido de la nota")
@@ -40,12 +41,13 @@ async function prepare(page: Page) {
 }
 
 async function create(page: Page, kind: string, instruction = "") {
+  await page.getByRole("tab", { name: "Recursos" }).click();
   await page.getByRole("button", { name: "+ Crear un recurso" }).click();
-  await page.getByText(kind, { exact: true }).first().click();
+  const sheet = page.getByRole("dialog", { name: "¿Qué quieres crear?" });
+  await sheet.getByText(kind, { exact: true }).click();
   if (instruction)
-    await page.getByLabel(/algo en particular/i).fill(instruction);
-  await page.getByLabel("Ley de Ohm", { exact: true }).check();
-  await page.getByRole("button", { name: "Crear recurso" }).click();
+    await sheet.getByLabel(/algo en particular/i).fill(instruction);
+  await sheet.getByRole("button", { name: "Crear", exact: true }).click();
 }
 
 test("H3: crea y revisa los cinco tipos de recurso", async ({ page }) => {
@@ -72,7 +74,9 @@ test("H3: crea y revisa los cinco tipos de recurso", async ({ page }) => {
   await page.getByRole("button", { name: /Volver a mis recursos/ }).click();
 
   await create(page, "Cuestionario");
-  await expect(page.getByText(/^1\. /)).toBeVisible({ timeout: 120000 });
+  await expect(page.getByText(/Pregunta 1 de/)).toBeVisible({
+    timeout: 120000,
+  });
   await page.locator(".quiz-option").first().click();
   await expect(page.locator(".quiz-feedback")).toBeVisible();
   await shot(page, "05-cuestionario");
@@ -89,10 +93,14 @@ test("H3: crea y revisa los cinco tipos de recurso", async ({ page }) => {
   await expect(page.locator(".interactive iframe")).toBeVisible({
     timeout: 180000,
   });
-  const frame = page.frameLocator(".interactive iframe");
-  await expect(frame.getByText("Listo para explorar.")).toBeVisible({
+  const frame = page
+    .frameLocator(".interactive iframe")
+    .frameLocator("iframe.sandbox-frame");
+  await expect(frame.locator("body.ec-ready")).toBeVisible({
     timeout: 30000,
   });
+  await expect(frame.locator("input[type=range]").first()).toBeVisible();
+  await page.waitForTimeout(1200);
   await shot(page, "07-interactivo");
 
   // Versión nueva sin perder la anterior.
@@ -100,14 +108,18 @@ test("H3: crea y revisa los cinco tipos de recurso", async ({ page }) => {
   await page.getByRole("button", { name: "Crear una versión nueva" }).click();
   await expect(page.getByRole("button", { name: /Versión 2/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Versión 1/ })).toBeVisible();
-  await expect(frame.getByText("Listo para explorar.")).toBeVisible({
+  await expect(frame.locator("body.ec-ready")).toBeVisible({
     timeout: 180000,
   });
+  await page.waitForTimeout(1200);
   await shot(page, "08-version-2");
 
   // La biblioteca conserva todo tras recargar.
+  // Al recargar la app se queda en el mismo recurso; se vuelve a la lista para contarlos.
   await page.reload();
-  await page.getByRole("button", { name: /Circuitos H3.*temas/ }).click();
+  await page
+    .getByRole("button", { name: /Volver a mis recursos/ })
+    .click({ timeout: 30000 });
   await expect(page.locator(".resource-card")).toHaveCount(5);
   await shot(page, "09-biblioteca");
 });

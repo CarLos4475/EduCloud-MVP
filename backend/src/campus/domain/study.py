@@ -52,6 +52,7 @@ class ConversationInput(ContractModel):
     assistance_mode: Literal["explain", "hints", "solution", "practice"] = "explain"
     material_ids: list[str] = Field(default_factory=list, max_length=10)
     source_mode: Literal["selected_material", "general"] = "selected_material"
+    response_length: Literal["brief", "normal", "detailed"] = "brief"
     preferences: str = Field(default="", max_length=500)
 
 
@@ -67,6 +68,33 @@ class TurnInput(ContractModel):
 class AnswerCitation(ContractModel):
     source_id: str = Field(pattern=r"^S[1-8]$")
     quote: str = Field(min_length=1, max_length=1200)
+
+
+ACTION_TYPES = (
+    "flashcards",
+    "quiz",
+    "exercises",
+    "connections",
+    "interactive",
+    "summary",
+    "concepts",
+)
+
+
+class TutorAction(ContractModel):
+    """A suggestion the student can accept with one tap; the tutor never runs it."""
+
+    type: Literal[
+        "flashcards",
+        "quiz",
+        "exercises",
+        "connections",
+        "interactive",
+        "summary",
+        "concepts",
+    ]
+    label: str = Field(min_length=1, max_length=40)
+    instruction: str = Field(min_length=1, max_length=300)
 
 
 class TutorAnswer(ContractModel):
@@ -173,6 +201,7 @@ class TurnRead(StudyRead):
     text: str
     citations: list[CitationRead]
     needs_consent: bool
+    actions: list[TutorAction] = Field(default_factory=list)
     sources_changed: bool
     partial_sources: bool = False
     source_mode: str

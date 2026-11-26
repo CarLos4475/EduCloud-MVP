@@ -1,35 +1,42 @@
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, studyRows } from "../../api";
 import { Skeleton } from "../../components/Skeleton";
 import { ProgressPanel } from "../progress/ProgressPanel";
 import { ResourceViewer } from "./ResourceViewer";
-import type { MaterialLite, ResourceDetail, ResourceRow, Kind } from "./types";
-import { KINDS, KIND_ICONS } from "./types";
-import { ArtImage, Icon } from "../../components/Icons";
+import type { ResourceDetail, ResourceRow } from "./types";
+import { KINDS } from "./types";
+import { ArtImage } from "../../components/Icons";
 
 const ACTIVE = ["queued", "running", "cancel_requested"];
 
+/* Lista y visor de recursos de una materia. Qué recurso está abierto lo decide la dirección
+   de la página (resourceId); crear se hace desde la hoja global de «Crear». */
 export function ResourcesPanel({
   subjectId,
-  openId,
-  onOpened,
+  resourceId,
+  onResourceChange,
+  onCreate,
 }: {
   subjectId: string;
-  openId?: string | null;
-  onOpened?: () => void;
+  resourceId: string | null;
+  onResourceChange: (id: string | null) => void;
+  onCreate: () => void;
 }) {
   const [rows, setRows] = useState<ResourceRow[] | null>(null);
-  const [materials, setMaterials] = useState<MaterialLite[]>([]);
   const [detail, setDetail] = useState<ResourceDetail | null>(null);
   const [opening, setOpening] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [kind, setKind] = useState<Kind>("summary");
-  const [instruction, setInstruction] = useState("");
-  const [chosen, setChosen] = useState<string[]>([]);
-  const [allowGeneral, setAllowGeneral] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const key = useRef(crypto.randomUUID());
+  const top = useRef<HTMLElement>(null);
+  const detailId = detail?.id;
+  // Al abrir un recurso, la vista sube hasta él en lugar de quedar al final de la página.
+  useEffect(() => {
+    if (!detailId) return;
+    const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    top.current?.scrollIntoView({
+      behavior: calm ? "auto" : "smooth",
+      block: "start",
+    });
+  }, [detailId]);
 
   const loadList = useCallback(async () => {
     try {
@@ -43,18 +50,9 @@ export function ResourcesPanel({
     }
   }, [subjectId]);
 
-  const loadMaterials = useCallback(
-    () =>
-      studyRows<MaterialLite>(`/subjects/${subjectId}/materials`)
-        .then((page) => setMaterials(page.items))
-        .catch(() => setMaterials([])),
-    [subjectId],
-  );
-
   useEffect(() => {
     void loadList();
-    void loadMaterials();
-  }, [loadList, loadMaterials]);
+  }, [loadList]);
 
   const open = useCallback(async (id: string) => {
     setOpening(true);
@@ -63,15 +61,28 @@ export function ResourcesPanel({
       setDetail(await api<ResourceDetail>(`/resources/${id}`));
     } catch (e) {
       setError((e as Error).message);
+      onResourceChange(null);
     } finally {
       setOpening(false);
     }
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // La dirección manda: abrir o cerrar el recurso sigue a resourceId.
   useEffect(() => {
-    if (!openId) return;
-    void open(openId).then(() => onOpened?.());
-  }, [openId, open, onOpened]);
+    if (!resourceId) {
+      if (detail) {
+        setDetail(null);
+        void loadList();
+      }
+      return;
+    }
+    if (detail?.id !== resourceId) void open(resourceId);
+  }, [resourceId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Si la lista cambió por fuera (por ejemplo, un recurso recién creado), se actualiza.
+  useEffect(() => {
+    if (!resourceId) void loadList();
+  }, [resourceId, loadList]);
 
   // While something is being prepared, check back until it is ready.
   const latest = detail?.versions[detail.versions.length - 1];
@@ -89,175 +100,49 @@ export function ResourcesPanel({
     return () => clearTimeout(timer);
   }, [detail, waiting, loadList]);
 
-  async function create(event: FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    setError("");
-    try {
-      const value = await api<ResourceDetail>("/resources", {
-        method: "POST",
-        headers: { "Idempotency-Key": key.current },
-        body: JSON.stringify({
-          subjectId,
-          kind,
-          instruction,
-          materialIds: chosen,
-          allowGeneral,
-        }),
-      });
-      key.current = crypto.randomUUID();
-      setDetail(value);
-      setCreating(false);
-      setInstruction("");
-      void loadList();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const usable = materials.filter((m) =>
-    ["ready", "partial"].includes(m.status),
-  );
-
   if (detail)
     return (
-      <section className="resources-panel" aria-label="Recurso de estudio">
-        <button
-          className="text-button"
-          onClick={() => {
-            setDetail(null);
-            void loadList();
-          }}
-        >
+      <section
+        className="resources-panel"
+        aria-label="Recurso de estudio"
+        ref={top}
+      >
+        <button className="text-button" onClick={() => onResourceChange(null)}>
           ← Volver a mis recursos
         </button>
         <ResourceViewer
           detail={detail}
           onChange={setDetail}
           onRefreshList={() => void loadList()}
-          onClose={() => {
-            setDetail(null);
-            void loadList();
-          }}
+          onClose={() => onResourceChange(null)}
         />
       </section>
     );
 
   return (
-    <section className="resources-panel" aria-labelledby="resources-title">
+    <section
+      className="resources-panel"
+      aria-labelledby="resources-title"
+      ref={top}
+    >
       <div className="section-heading">
         <div>
           <span className="eyebrow">ESTUDIA A TU MANERA</span>
           <h2 id="resources-title">Recursos para estudiar</h2>
         </div>
-        {!creating && (
-          <button
-            className="primary"
-            onClick={() => {
-              setCreating(true);
-              void loadMaterials();
-            }}
-          >
-            + Crear un recurso
-          </button>
-        )}
+        <button className="primary" onClick={onCreate}>
+          + Crear un recurso
+        </button>
       </div>
       {error && (
         <p role="alert" className="form-error">
           {error}
         </p>
       )}
-      {!creating && (
-        <ProgressPanel subjectId={subjectId} onOpen={(id) => void open(id)} />
-      )}
-      {creating && (
-        <form className="resource-composer" onSubmit={create}>
-          <fieldset className="kind-picker">
-            <legend>¿Qué quieres crear?</legend>
-            {KINDS.map((k) => (
-              <label
-                key={k.id}
-                className={`kind-card ${kind === k.id ? "selected" : ""}`}
-              >
-                <input
-                  type="radio"
-                  name="kind"
-                  checked={kind === k.id}
-                  onChange={() => setKind(k.id)}
-                />
-                <span className="kind-icon" aria-hidden="true">
-                  <ArtImage src={`/art/kinds/${k.id}.png`}>
-                    <Icon name={KIND_ICONS[k.id]} size={22} />
-                  </ArtImage>
-                </span>
-                <strong>{k.label}</strong>
-                <span>{k.hint}</span>
-              </label>
-            ))}
-          </fieldset>
-          <label>
-            ¿Algo en particular? (opcional)
-            <textarea
-              value={instruction}
-              onChange={(e) => setInstruction(e.target.value)}
-              maxLength={1000}
-              rows={2}
-              placeholder="Por ejemplo: enfócate en la ley de Ohm"
-            />
-          </label>
-          <fieldset className="source-picker">
-            <legend>¿Con qué apuntes?</legend>
-            {usable.length ? (
-              usable.map((m) => (
-                <label className="check-label" key={m.id}>
-                  <input
-                    type="checkbox"
-                    checked={chosen.includes(m.id)}
-                    onChange={(e) =>
-                      setChosen((current) =>
-                        e.target.checked
-                          ? [...current, m.id]
-                          : current.filter((id) => id !== m.id),
-                      )
-                    }
-                  />
-                  {m.name}
-                </label>
-              ))
-            ) : (
-              <p className="quiet-panel">
-                Aún no tienes apuntes listos en esta materia. Sube uno arriba o
-                permite usar conocimiento general.
-              </p>
-            )}
-          </fieldset>
-          <label className="check-label">
-            <input
-              type="checkbox"
-              checked={allowGeneral}
-              onChange={(e) => setAllowGeneral(e.target.checked)}
-            />
-            Puedes complementar con conocimiento general si hace falta.
-          </label>
-          <div className="button-row">
-            <button
-              className="primary"
-              disabled={busy || (!chosen.length && !allowGeneral)}
-            >
-              {busy ? "Preparando…" : "Crear recurso"}
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => setCreating(false)}
-            >
-              Cancelar
-            </button>
-          </div>
-        </form>
-      )}
+      <ProgressPanel
+        subjectId={subjectId}
+        onOpen={(id) => onResourceChange(id)}
+      />
       {rows === null ? (
         <div className="resource-grid" role="status" aria-label="Cargando">
           {[0, 1, 2].map((i) => (
@@ -274,9 +159,10 @@ export function ResourcesPanel({
             return (
               <button
                 key={r.id}
+                data-kind={r.kind}
                 className="resource-card"
                 disabled={opening}
-                onClick={() => void open(r.id)}
+                onClick={() => onResourceChange(r.id)}
               >
                 <span className="resource-kind">{meta?.label ?? r.kind}</span>
                 <strong>{r.title}</strong>
@@ -294,18 +180,15 @@ export function ResourcesPanel({
           })}
         </div>
       ) : (
-        !creating && (
-          <div className="empty-state">
-            <ArtImage src="/art/empty-resources.png" className="empty-art">
-              {null}
-            </ArtImage>
-            <h3>Todavía no tienes recursos.</h3>
-            <p>
-              Crea un resumen, tarjetas o un cuestionario a partir de tus
-              apuntes.
-            </p>
-          </div>
-        )
+        <div className="empty-state">
+          <ArtImage src="/art/empty-resources.png" className="empty-art">
+            {null}
+          </ArtImage>
+          <h3>Todavía no tienes recursos.</h3>
+          <p>
+            Crea un resumen, tarjetas o un cuestionario a partir de tus apuntes.
+          </p>
+        </div>
       )}
     </section>
   );

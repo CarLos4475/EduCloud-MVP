@@ -1,0 +1,1000 @@
+/* Kit visual de EduCloud para recursos interactivos.
+   Se inyecta dentro del sandbox aislado; el recurso generado lo usa en vez de inventar estilos. */
+:root {
+  --navy: #122245;
+  --gold: #b59957;
+  --paper: #f5f2ea;
+  --sand: #e9dec7;
+  --cream: #fffdf7;
+  --ink: #122245;
+  --muted: #5f6570;
+  --good: #2f7a4f;
+  --bad: #b3402a;
+  --s1: #122245;
+  --s2: #b59957;
+  --s3: #2f7f86;
+  --s4: #b4552d;
+  --s5: #6a5a9a;
+  --s6: #4d7c4a;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --shadow: 5px 5px 0 var(--gold);
+  --font-display: "Alfa Slab One", Georgia, serif;
+  --font-body: "Archivo Narrow", Arial, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, monospace;
+  color-scheme: light;
+}
+* {
+  box-sizing: border-box;
+}
+html {
+  background: transparent;
+}
+body {
+  margin: 0;
+  padding: 4px 10px 14px 4px;
+  font: 18px/1.45 var(--font-body);
+  color: var(--ink);
+  background: transparent;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+#ec-root {
+  display: grid;
+  gap: 22px;
+}
+body.ec-hidden {
+  opacity: 0;
+}
+body.ec-ready {
+  opacity: 1;
+  transition: opacity 0.35s var(--ease);
+}
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: 1.1;
+  margin: 0 0 8px;
+  color: var(--navy);
+}
+h2 {
+  font-size: 1.45rem;
+}
+h3 {
+  font-size: 1.2rem;
+}
+h4 {
+  font-size: 1rem;
+}
+p {
+  margin: 0 0 10px;
+}
+strong,
+b {
+  font-weight: 700;
+}
+small,
+.ec-tag {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ec-muted {
+  color: var(--muted);
+}
+.ec-mono {
+  font-family: var(--font-mono);
+}
+
+/* ---------- Estructura ---------- */
+.ec-layout {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1.55fr) minmax(250px, 1fr);
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .ec-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.ec-stack {
+  display: grid;
+  gap: 14px;
+}
+.ec-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.ec-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+.ec-stage {
+  position: relative;
+  background: var(--cream);
+  border: 2px solid var(--navy);
+  box-shadow: var(--shadow);
+  padding: 14px;
+  min-width: 0;
+}
+.ec-stage > svg,
+.ec-stage > canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.ec-panel {
+  background: #efe7d4;
+  border: 2px solid var(--navy);
+  padding: 16px 18px;
+  min-width: 0;
+}
+.ec-panel > :last-child {
+  margin-bottom: 0;
+}
+.ec-title {
+  display: block;
+  margin: 0 0 10px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--muted);
+}
+
+/* ---------- Controles ---------- */
+.ec-field {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 16px;
+}
+.ec-field:last-child {
+  margin-bottom: 0;
+}
+.ec-field-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-weight: 700;
+}
+.ec-val {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.92rem;
+  background: var(--navy);
+  color: var(--cream);
+  padding: 1px 8px;
+  min-width: 3.4em;
+  text-align: center;
+  white-space: nowrap;
+}
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 30px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: pan-y;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 10px;
+  border: 2px solid var(--navy);
+  background: linear-gradient(
+    90deg,
+    var(--navy) var(--pct, 50%),
+    var(--cream) var(--pct, 50%)
+  );
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 26px;
+  height: 26px;
+  margin-top: -9px;
+  background: var(--gold);
+  border: 2px solid var(--navy);
+  box-shadow: 3px 3px 0 var(--navy);
+  transition:
+    transform 0.15s var(--ease),
+    box-shadow 0.15s var(--ease);
+}
+input[type="range"]::-moz-range-track {
+  height: 10px;
+  border: 2px solid var(--navy);
+  background: var(--cream);
+}
+input[type="range"]::-moz-range-progress {
+  height: 10px;
+  background: var(--navy);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 0;
+  background: var(--gold);
+  border: 2px solid var(--navy);
+  box-shadow: 3px 3px 0 var(--navy);
+}
+input[type="range"]:hover::-webkit-slider-thumb {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--navy);
+}
+input[type="range"]:active::-webkit-slider-thumb {
+  transform: translate(2px, 2px) scale(1.06);
+  box-shadow: 1px 1px 0 var(--navy);
+}
+input[type="range"]:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 4px;
+}
+select,
+input[type="number"],
+input[type="text"] {
+  font: inherit;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  color: var(--ink);
+  background: var(--cream);
+  border: 2px solid var(--navy);
+  border-radius: 0;
+}
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--navy);
+  width: 20px;
+  height: 20px;
+}
+label.ec-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-weight: 700;
+  cursor: pointer;
+}
+button,
+.ec-btn {
+  font: inherit;
+  font-weight: 700;
+  min-height: 44px;
+  padding: 8px 18px;
+  color: var(--cream);
+  background: var(--navy);
+  border: 2px solid var(--navy);
+  border-radius: 0;
+  box-shadow: 3px 3px 0 var(--gold);
+  cursor: pointer;
+  transition:
+    transform 0.14s var(--ease),
+    box-shadow 0.14s var(--ease),
+    background 0.2s;
+}
+button:hover,
+.ec-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--gold);
+}
+button:active,
+.ec-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--gold);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 3px 3px 0 var(--gold);
+}
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 3px;
+}
+.ec-btn.alt,
+button.alt {
+  color: var(--navy);
+  background: var(--cream);
+  box-shadow: 3px 3px 0 var(--navy);
+}
+.ec-btn.gold,
+button.gold {
+  color: var(--navy);
+  background: var(--gold);
+  box-shadow: 3px 3px 0 var(--navy);
+}
+.ec-seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: 2px solid var(--navy);
+  background: var(--cream);
+}
+.ec-seg > button {
+  min-height: 40px;
+  color: var(--navy);
+  background: transparent;
+  border: 0;
+  border-right: 2px solid var(--navy);
+  box-shadow: none;
+  padding: 6px 14px;
+}
+.ec-seg > button:last-child {
+  border-right: 0;
+}
+.ec-seg > button:hover {
+  transform: none;
+  background: #f1e9d2;
+  box-shadow: none;
+}
+.ec-seg > button[aria-pressed="true"],
+.ec-seg > button.on {
+  color: var(--cream);
+  background: var(--navy);
+}
+.ec-chip {
+  display: inline-block;
+  padding: 2px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--navy);
+  background: var(--sand);
+  border: 1.5px solid var(--navy);
+}
+
+/* ---------- Lecturas y avisos ---------- */
+.ec-stats {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+.ec-stat {
+  padding: 8px 12px 8px 14px;
+  background: var(--cream);
+  border: 2px solid var(--navy);
+  border-left: 8px solid var(--gold);
+  min-width: 0;
+}
+.ec-stat > b {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.6rem;
+  line-height: 1.1;
+  color: var(--navy);
+  font-variant-numeric: tabular-nums;
+}
+.ec-stat > b {
+  white-space: nowrap;
+}
+.ec-unit {
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.ec-stat > small {
+  display: block;
+  margin-top: 2px;
+}
+.ec-stat.s3 {
+  border-left-color: var(--s3);
+}
+.ec-stat.s4 {
+  border-left-color: var(--s4);
+}
+.ec-stat.s5 {
+  border-left-color: var(--s5);
+}
+.ec-stat.s6 {
+  border-left-color: var(--s6);
+}
+.ec-note {
+  padding: 12px 16px;
+  background: #faf3df;
+  border: 2px solid var(--navy);
+  border-left: 8px solid var(--gold);
+}
+.ec-note > :last-child {
+  margin-bottom: 0;
+}
+.ec-note.good {
+  background: #e7f2ea;
+  border-left-color: var(--good);
+}
+.ec-note.bad {
+  background: #f8e8e3;
+  border-left-color: var(--bad);
+}
+.ec-formula {
+  display: block;
+  padding: 10px 14px;
+  overflow-x: auto;
+  background: var(--cream);
+  border: 2px dashed var(--navy);
+  text-align: center;
+}
+.ec-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 6px 0 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+.ec-legend > span::before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 6px;
+  margin-right: 6px;
+  vertical-align: middle;
+  background: var(--c, var(--navy));
+}
+.ec-progress {
+  height: 12px;
+  border: 2px solid var(--navy);
+  background: var(--cream);
+}
+.ec-progress > i {
+  display: block;
+  height: 100%;
+  width: var(--pct, 0%);
+  background: var(--gold);
+  transition: width 0.5s var(--ease);
+}
+.ec-steps {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+.ec-steps > i {
+  flex: 1;
+  height: 8px;
+  background: var(--sand);
+  border: 1.5px solid var(--navy);
+  transition: background 0.3s;
+}
+.ec-steps > i.on {
+  background: var(--gold);
+}
+table.ec-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--cream);
+  font-size: 0.95rem;
+}
+.ec-table th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cream);
+  background: var(--navy);
+  padding: 6px 10px;
+}
+.ec-table td {
+  padding: 6px 10px;
+  border-bottom: 1.5px solid #12224522;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Gráficas (SVG) ---------- */
+.ec-svg text {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  fill: var(--muted);
+}
+.ec-svg .ec-grid-line {
+  stroke: var(--navy);
+  stroke-opacity: 0.1;
+  stroke-width: 1;
+}
+.ec-svg .ec-axis {
+  stroke: var(--navy);
+  stroke-width: 2;
+}
+.ec-svg .ec-axis-label {
+  fill: var(--navy);
+  font-weight: 500;
+  font-size: 15px;
+}
+.ec-svg .ec-curve {
+  fill: none;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ec-svg .ec-area {
+  stroke: none;
+  fill-opacity: 0.16;
+}
+.ec-svg .ec-guide {
+  stroke: var(--navy);
+  stroke-opacity: 0.45;
+  stroke-width: 1.5;
+  stroke-dasharray: 5 5;
+  fill: none;
+}
+.ec-svg .ec-dot {
+  stroke: var(--navy);
+  stroke-width: 2.5;
+}
+.ec-svg .ec-handle {
+  cursor: grab;
+  touch-action: none;
+}
+.ec-svg .ec-handle:active {
+  cursor: grabbing;
+}
+.ec-svg .ec-hit {
+  fill: transparent;
+}
+.ec-svg .ec-mlabel {
+  paint-order: stroke;
+  stroke: var(--cream);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+.ec-svg .ec-tip rect {
+  fill: var(--navy);
+}
+.ec-svg .ec-tip text {
+  fill: var(--cream);
+  font-size: 14px;
+}
+.ec-svg .ec-bar {
+  stroke: var(--navy);
+  stroke-width: 2;
+  transition:
+    y 0.5s var(--ease),
+    height 0.5s var(--ease);
+}
+.ec-s1 {
+  --c: var(--s1);
+}
+.ec-s2 {
+  --c: var(--s2);
+}
+.ec-s3 {
+  --c: var(--s3);
+}
+.ec-s4 {
+  --c: var(--s4);
+}
+.ec-s5 {
+  --c: var(--s5);
+}
+.ec-s6 {
+  --c: var(--s6);
+}
+
+/* ---------- Movimiento ---------- */
+@keyframes ec-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes ec-bump {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.14);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes ec-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+@keyframes ec-pulse {
+  0% {
+    box-shadow: 0 0 0 0 #b5995788;
+  }
+  100% {
+    box-shadow: 0 0 0 16px #b5995700;
+  }
+}
+@keyframes ec-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes ec-confetti {
+  from {
+    transform: translate(0, 0) rotate(0);
+    opacity: 1;
+  }
+  to {
+    transform: translate(var(--dx), var(--dy)) rotate(var(--rot));
+    opacity: 0;
+  }
+}
+.ec-enter {
+  animation: ec-in 0.6s var(--ease) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+.ec-bump {
+  animation: ec-bump 0.35s var(--ease);
+}
+.ec-shake {
+  animation: ec-shake 0.4s;
+}
+.ec-pulse {
+  animation: ec-pulse 0.7s ease-out;
+}
+.ec-svg .ec-curve.ec-drawn {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: ec-draw 0.9s var(--ease) forwards;
+}
+.ec-confetti {
+  position: fixed;
+  z-index: 50;
+  width: 9px;
+  height: 9px;
+  pointer-events: none;
+  background: var(--c, var(--gold));
+  border: 1.5px solid var(--navy);
+  animation: ec-confetti 0.95s cubic-bezier(0.1, 0.7, 0.3, 1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .ec-svg .ec-curve.ec-drawn {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ---------- Escena 3D y grafos ---------- */
+.ec-3d-tools {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 6px;
+}
+.ec-3d-tools button {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+canvas:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 3px;
+}
+.ec-graph .ec-edge {
+  stroke: var(--navy);
+  stroke-width: 2.5;
+  stroke-opacity: 0.5;
+  stroke-linecap: round;
+  transition:
+    stroke 0.3s,
+    stroke-width 0.3s,
+    stroke-opacity 0.3s;
+}
+.ec-graph .ec-arrow {
+  fill: var(--navy);
+  fill-opacity: 0.55;
+  transition: fill 0.3s;
+}
+.ec-graph .ec-edge-halo {
+  fill: var(--cream);
+  fill-opacity: 0.92;
+}
+.ec-graph .ec-edge-label {
+  font-size: 14px;
+  font-weight: 700;
+  fill: var(--navy);
+}
+.ec-graph .ec-edge-g.path .ec-edge,
+.ec-graph .ec-edge-g.current .ec-edge {
+  stroke: var(--s4);
+  stroke-width: 5;
+  stroke-opacity: 1;
+}
+.ec-graph .ec-edge-g.path .ec-arrow,
+.ec-graph .ec-edge-g.current .ec-arrow {
+  fill: var(--s4);
+  fill-opacity: 1;
+}
+.ec-graph .ec-edge-g.visited .ec-edge {
+  stroke: var(--s3);
+  stroke-opacity: 1;
+  stroke-width: 3.5;
+}
+.ec-graph .ec-edge-g.visited .ec-arrow {
+  fill: var(--s3);
+  fill-opacity: 1;
+}
+.ec-graph .ec-edge-g.dim {
+  opacity: 0.25;
+}
+.ec-graph .ec-node {
+  cursor: grab;
+  outline: none;
+}
+.ec-graph .ec-node.ec-clickable {
+  cursor: pointer;
+}
+.ec-graph .ec-node circle {
+  fill: var(--cream);
+  stroke: var(--navy);
+  stroke-width: 3;
+  transition:
+    fill 0.3s,
+    stroke 0.3s,
+    stroke-width 0.3s;
+}
+.ec-graph .ec-node:hover circle,
+.ec-graph .ec-node:focus-visible circle {
+  stroke-width: 4.5;
+}
+.ec-graph .ec-node:focus-visible circle {
+  stroke: var(--gold);
+}
+.ec-graph .ec-node text {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 16px;
+  fill: var(--navy);
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+  transition: fill 0.3s;
+}
+.ec-graph .ec-node .ec-node-badge {
+  font-size: 13px;
+  fill: var(--s4);
+  font-weight: 700;
+}
+.ec-graph .ec-node.current circle {
+  fill: var(--gold);
+  stroke-width: 4.5;
+}
+.ec-graph .ec-node.visited circle {
+  fill: var(--navy);
+}
+.ec-graph .ec-node.visited text {
+  fill: var(--cream);
+}
+.ec-graph .ec-node.path circle {
+  fill: #f6e3d9;
+  stroke: var(--s4);
+  stroke-width: 4.5;
+}
+.ec-graph .ec-node.dim {
+  opacity: 0.35;
+}
+
+.ec-formula {
+  scrollbar-width: thin;
+}
+.ec-formula .katex-display {
+  margin: 0;
+}
+.ec-formula .katex {
+  font-size: 1.02em;
+}
+
+/* ---------- Lección guiada ---------- */
+.ec-lesson {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  background: var(--cream);
+  border: 2px solid var(--navy);
+  box-shadow: var(--shadow);
+}
+.ec-lesson-head {
+  display: grid;
+  gap: 2px;
+}
+.ec-lesson-count {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ec-lesson-title {
+  margin: 0;
+  font-size: 1.35rem;
+}
+.ec-lesson .ec-steps {
+  margin: 0;
+}
+.ec-lesson-body {
+  min-height: 120px;
+  animation: ec-slide 0.45s var(--ease) both;
+}
+.ec-lesson-body.ec-slide-back {
+  animation-name: ec-slide-back;
+}
+.ec-lesson-body > :last-child {
+  margin-bottom: 0;
+}
+.ec-lesson-feedback {
+  margin: 0;
+}
+.ec-lesson-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.ec-lesson-foot > .gold {
+  margin-left: auto;
+}
+@keyframes ec-slide {
+  from {
+    opacity: 0;
+    transform: translateX(26px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes ec-slide-back {
+  from {
+    opacity: 0;
+    transform: translateX(-26px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- Libreta de dibujo (EC.sketch) ---------- */
+.ec-sketch {
+  display: grid;
+  gap: 12px;
+}
+.ec-sketch-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.ec-sketch-bar button {
+  min-height: 40px;
+  padding: 6px 14px;
+}
+.ec-sketch-bar .ec-seg > button {
+  min-height: 40px;
+}
+.ec-sketch-colors {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+.ec-sketch-bar button.ec-sketch-swatch {
+  width: 36px;
+  min-height: 36px;
+  height: 36px;
+  padding: 0;
+  background: var(--c);
+  border: 2px solid var(--navy);
+  border-radius: 50%;
+  box-shadow: none;
+}
+.ec-sketch-bar button.ec-sketch-swatch[aria-pressed="true"] {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+.ec-sketch-stage {
+  position: relative;
+  border: 2px solid var(--navy);
+  background: var(--cream);
+  box-shadow: var(--shadow);
+  line-height: 0;
+}
+.ec-sketch-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  cursor: crosshair;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.ec-sketch-stage.erasing .ec-sketch-svg {
+  cursor: cell;
+}
+.ec-sketch-layers path {
+  transition: opacity 0.3s var(--ease);
+}
+.ec-sketch-hint {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  font: 700 1.1rem/1.3 var(--font-body);
+  color: var(--muted);
+  pointer-events: none;
+  transition: opacity 0.25s var(--ease);
+}
+.ec-sketch-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.ec-sketch-choices-label {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.ec-sketch-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ec-sketch-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--navy);
+  background: var(--sand);
+  border: 1.5px solid var(--navy);
+  animation: ec-in 0.3s var(--ease) both;
+}
+.ec-sketch-key::before {
+  content: "";
+  width: 18px;
+  height: 4px;
+  background: var(--c);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ec-sketch-key {
+    animation: none;
+  }
+}
