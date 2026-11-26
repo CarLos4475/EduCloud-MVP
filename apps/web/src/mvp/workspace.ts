@@ -1,6 +1,7 @@
 import type { Row } from "../api";
 import type { Kind } from "../features/resources/types";
 import {
+  canDeleteLocalResource,
   exampleNoteId,
   noteBlock,
   ohmResource,
@@ -46,6 +47,13 @@ function persist() {
   } catch {
     // The workspace remains usable in the open tab.
   }
+}
+
+function clearResourceHistory(db: WorkspaceState, versions: Set<string>) {
+  db.attempts = db.attempts.filter(
+    (attempt) => !versions.has(attempt.versionId),
+  );
+  for (const version of versions) delete db.reviews[version];
 }
 export function hasLocalSession() {
   try {
@@ -389,8 +397,7 @@ export async function localRequest(
         db.turns = db.turns.filter(
           (r) => !conversationIds.has(String(r.conversationId)),
         );
-        db.attempts = db.attempts.filter((a) => !versions.has(a.versionId));
-        for (const version of versions) delete db.reviews[version];
+        clearResourceHistory(db, versions);
       }
       persist();
       return new Response(null, { status: 204 });
@@ -548,6 +555,19 @@ export async function localRequest(
     }
     const detail = db.resources.find((r) => r.id === id);
     if (!detail) return missing();
+    if (!action && method === "DELETE") {
+      if (!canDeleteLocalResource(detail.id))
+        return unavailable("Este recurso viene incluido en la materia.");
+      db.resources = db.resources.filter(
+        (resource) => resource.id !== detail.id,
+      );
+      clearResourceHistory(
+        db,
+        new Set(detail.versions.map((version) => version.id)),
+      );
+      persist();
+      return new Response(null, { status: 204 });
+    }
     if (action === "versions")
       return unavailable(
         "Las versiones de este recurso están preparadas para consulta.",

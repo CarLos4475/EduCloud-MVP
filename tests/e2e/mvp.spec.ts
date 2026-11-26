@@ -94,6 +94,9 @@ test("el espacio local conserva el calendario y permite consultar el apunte con 
   await expect(page).toHaveURL(
     /\/materias\/circuitos\/recursos\/practica-ohm$/,
   );
+  await expect(
+    page.getByRole("button", { name: "Eliminar recurso" }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "2 A", exact: true }).click();
   await page.getByRole("button", { name: "Ver mi resultado" }).click();
   await expect(page.getByText(/Acertaste 1 de 1/)).toBeVisible();
@@ -123,4 +126,19 @@ test("el espacio local conserva el calendario y permite consultar el apunte con 
   ).toBeVisible();
   await page.reload();
   await expect(resistance).toBeVisible();
+  const remove = page.getByRole("button", { name: "Eliminar recurso" });
+  await expect(remove).toBeVisible();
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await remove.click();
+  await expect(resistance).toBeVisible();
+  page.once("dialog", (dialog) => dialog.accept());
+  await remove.click();
+  await expect(page).toHaveURL(/\/materias\/circuitos\/recursos$/);
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: /Práctica de la ley de Ohm/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Experimento interactivo/ }),
+  ).toHaveCount(0);
 });

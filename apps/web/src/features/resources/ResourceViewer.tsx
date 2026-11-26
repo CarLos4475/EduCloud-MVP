@@ -3,6 +3,7 @@ import { api } from "../../api";
 import { SafeMarkdown } from "../../components/SafeMarkdown";
 import { StageProgress } from "../../components/Skeleton";
 import { localWorkspace } from "../../mvp/workspace";
+import { canDeleteLocalResource } from "../../mvp/fixtures";
 import { watch } from "../notify/watch";
 import { Connections, Exercises } from "./Exercises";
 import { OhmChallenge } from "./OhmChallenge";
@@ -354,6 +355,24 @@ export function ResourceViewer({
             }
           >
             Archivar
+          </button>
+        )}
+        {localWorkspace && canDeleteLocalResource(detail.id) && (
+          <button
+            className="text-button danger"
+            disabled={busy}
+            onClick={() => {
+              if (
+                !window.confirm(`¿Eliminar «${detail.title}» de tus recursos?`)
+              )
+                return;
+              void run(async () => {
+                await api(`/resources/${detail.id}`, { method: "DELETE" });
+                onClose();
+              });
+            }}
+          >
+            Eliminar recurso
           </button>
         )}
       </header>

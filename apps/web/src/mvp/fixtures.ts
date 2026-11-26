@@ -9,6 +9,13 @@ import type {
 export const subjectId = "circuitos";
 export const exampleNoteId = "ley-de-ohm";
 export const exampleQuizId = "practica-ohm";
+const exampleCardsId = "tarjetas-ohm";
+const exampleSummaryId = "resumen-ohm";
+
+export function canDeleteLocalResource(id: string) {
+  return ![exampleQuizId, exampleCardsId, exampleSummaryId].includes(id);
+}
+
 export type OhmChallenge = {
   title: string;
   scenario: string;
@@ -228,13 +235,13 @@ export function seedWorkspace() {
         "Práctica de la ley de Ohm",
       )!,
       sampleResource(
-        "tarjetas-ohm",
+        exampleCardsId,
         "flashcards",
         subjectId,
         "Tarjetas de circuitos",
       )!,
       sampleResource(
-        "resumen-ohm",
+        exampleSummaryId,
         "summary",
         subjectId,
         "Ley de Ohm en breve",
