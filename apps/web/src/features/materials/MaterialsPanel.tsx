@@ -309,7 +309,7 @@ export function MaterialsPanel({
         attachLocalFile(subjectId, file, displayName);
         setNote("");
         setNoteTitle("");
-        setNotice("Material adjunto. El tutor puede consultar los apuntes marcados como listos.");
+        setNotice("Adjuntaste el archivo. Para preguntar al tutor, elige un apunte listo para estudiar.");
         await refresh();
         return;
       }
@@ -398,7 +398,7 @@ export function MaterialsPanel({
       </div>
       <p>
         {localWorkspace
-          ? "Adjunta PDF, presentaciones, imágenes o notas. El tutor consulta los apuntes marcados como listos para estudiar."
+          ? "Adjunta un PDF, una presentación o una imagen. Para usar el tutor, elige un apunte listo para estudiar."
           : "PDF, presentaciones, imágenes y notas. Las transcripciones dudosas necesitan tu revisión antes de usarse con el tutor."}
       </p>
       {error && (

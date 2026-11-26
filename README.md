@@ -1,10 +1,10 @@
 # EduCloud
 
-El repositorio activo es [CarLos4475/EduCloud-MVP](https://github.com/CarLos4475/EduCloud-MVP). La [compilación de revisión](docs/runbooks/mvp-vercel.md) reutiliza las pantallas actuales con datos en el navegador y un tutor conectado al proveedor real. El entorno de desarrollo completo sigue usando Firebase y FastAPI.
+Prueba [EduCloud en Vercel](https://educloud-mvp.vercel.app). Puedes abrir un espacio, revisar el calendario, consultar el tutor y resolver una práctica. Esta versión guarda el avance en el navegador y usa DeepSeek para responder. El código está en [CarLos4475/EduCloud-MVP](https://github.com/CarLos4475/EduCloud-MVP). La [guía de Vercel](docs/runbooks/mvp-vercel.md) explica cómo probar y publicar cambios.
 
 Funcionan identidad, perfil, materias libres, temas, periodos, agenda y horario. H2 incorpora biblioteca privada, extracción y revisión de apuntes, tutor con fuentes verificables, personalidades, modos de ayuda e historial recuperable. H0 conserva el laboratorio aislado de recursos interactivos; su generación dentro del tutor corresponde a H3.
 
-Para retomar el proyecto, leer primero [AGENTS.md](AGENTS.md) y el [contexto actualizado](docs/CONTEXTO.md). **Al 11 de noviembre de 2026, el despliegue sigue pausado hasta que el usuario avise que la facturación está activa; el desarrollo y las pruebas continúan en local y la nube se conecta después (ver contexto).** La solicitud de acceso remoto ya existe; aún no se ha desplegado la web. La dirección propuesta es Firebase Hosting en dos orígenes y Cloud Run para API/worker. También queda pendiente aplicar esqueletos a todos los estados de espera, sin spinners.
+Para retomar el proyecto, lee [AGENTS.md](AGENTS.md) y el [contexto](docs/CONTEXTO.md). La aplicación completa se prueba en local con Firebase y FastAPI. Su despliegue en Google Cloud sigue en pausa hasta que se active la facturación. La versión de Vercel se publica por separado y usa datos del navegador.
 
 ## Requisitos e instalación
 
@@ -27,7 +27,7 @@ El emulador exporta datos al salir con el script; `.firebase` está ignorado. Ar
 
 ## Servicios reales
 
-Firebase y datos: `educloud-1d5de`, con Firestore Native `(default)` en `us-central1`, reglas cliente deny-all y app web registrada. `educloud-513604` queda reservado para Cloud Run posterior; aún no hay despliegue de la aplicación.
+Firebase y los datos están en `educloud-1d5de`, con Firestore Native `(default)` en `us-central1`, reglas cliente deny-all y app web registrada. `educloud-513604` queda reservado para Cloud Run cuando se despliegue la aplicación completa.
 
 Los originales, versiones e índices de H2 se guardan por ahora en `.data/objects`, fuera de las rutas servidas y excluida de Git. Los dos servidores Vite deniegan también acceso mediante `@fs`. El adaptador GCS exige acceso uniforme y prevención de acceso público. Crear el bucket requiere activar facturación; no se ha vinculado ninguna cuenta ni creado el bucket. El worker local consulta trabajos persistidos; el transporte Cloud Tasks queda preparado para H6.
 

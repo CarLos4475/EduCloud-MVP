@@ -1,6 +1,8 @@
 # EduCloud · Contexto para retomar
 
-Actualizado: 11 de noviembre de 2026. Este archivo resume acuerdos y estado; no sustituye los registros de pruebas ni autoriza ejecutar los pendientes.
+Actualizado el 25 de noviembre de 2026. Los registros de cierre detallan qué se probó en cada etapa.
+
+El 25 de noviembre se publicó el MVP en [Vercel](https://educloud-mvp.vercel.app), vinculado al nuevo repositorio [EduCloud-MVP](https://github.com/CarLos4475/EduCloud-MVP). El tutor responde con DeepSeek y el resto del espacio guarda los datos de ejemplo en el navegador. La pausa de Google Cloud se mantiene para la aplicación completa. Consulta la [guía de Vercel](runbooks/mvp-vercel.md) para los detalles de publicación.
 
 ## Propósito y experiencia
 

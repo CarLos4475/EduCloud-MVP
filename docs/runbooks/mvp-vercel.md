@@ -1,10 +1,10 @@
 # EduCloud para revisión en Vercel
 
-La compilación usa las pantallas actuales de EduCloud. La sesión, los registros de ejemplo, el calendario, la práctica y el progreso se guardan en el navegador. El registro pide un nombre. Los adjuntos registran nombre y tamaño. La vista de tutor enlaza al apunte «Ley de Ohm» que se incluye en el proyecto. Los recursos listos para repasar son ejemplos preparados. El visor de interactivos generados conserva su configuración aislada en la aplicación completa.
+Abre [EduCloud en Vercel](https://educloud-mvp.vercel.app) y elige «Crear mi espacio». Basta con un nombre. El calendario y el avance se guardan en ese navegador. Al elegir un archivo, la aplicación guarda su nombre y tamaño. El tutor responde con DeepSeek y puede citar el apunte «Ley de Ohm», que viene con el espacio. Los recursos de práctica ya están preparados para que puedas abrirlos al entrar.
 
 ## Prueba local
 
-En la raíz, ejecutar `pnpm --filter @campus/web dev:mvp` y abrir `http://127.0.0.1:5173`. Este modo funciona de forma independiente a Firebase y FastAPI. Para comprobar la respuesta real, el servidor de Vite lee `DEEPSEEK_API_KEY` de la configuración local y la usa en su middleware. El navegador recibe únicamente la respuesta.
+Desde la raíz, ejecuta `pnpm --filter @campus/web dev:mvp` y abre `http://127.0.0.1:5173`. Vite lee `DEEPSEEK_API_KEY` de la configuración local y llama a DeepSeek desde el servidor. Para esta prueba basta con Vite.
 
 Para verificar el recorrido con una respuesta controlada de red:
 
@@ -15,12 +15,13 @@ node --test tests/mvp-tutor.test.mjs
 pnpm --filter @campus/web build:mvp
 ```
 
-## Configuración del proyecto
+## Publicación
 
-- Crear o vincular un proyecto Vercel con **Root Directory** `apps/web` y permitir que la compilación use los archivos del monorepo fuera de esa carpeta. La configuración está en [vercel.json](../../apps/web/vercel.json). Se instala desde el workspace y se ejecuta `pnpm build:mvp`. El directorio público es `dist`.
-- La web y `POST /api/tutor` comparten el dominio. Las rutas de materias, biblioteca, calendario y perfil reescriben a `index.html`. La función reside en `api/tutor.mjs`. La conexión usa el mismo origen.
-- Configurar una regla de [Vercel Firewall](https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting) para limitar las solicitudes a `/api/tutor` antes de activar el tutor público. Agregar `DEEPSEEK_API_KEY` en variables sensibles del servidor. Activar `EDUCLOUD_TUTOR_ENABLED=1` solo en el entorno que se va a entregar y desplegar la configuración correspondiente. La API devuelve 503 mientras esa opción está desactivada. Mantener `.env` fuera de la publicación y guardar las claves del lado del servidor.
-- Abrir el enlace en incógnito. Crear un espacio, recargar una ruta de materia, seleccionar un archivo de ejemplo, consultar el tutor y abrir la cita. Contestar la práctica y confirmar el resultado en «Tu progreso». Añadir el enlace al documento de entrega cuando funcione.
+Vercel toma `main` de [EduCloud-MVP](https://github.com/CarLos4475/EduCloud-MVP). El directorio raíz del proyecto es `apps/web` y la compilación usa Node 24 y `pnpm build:mvp`. La web y `POST /api/tutor` comparten el dominio. Las reglas de navegación y la salida `dist` están en [vercel.json](../../apps/web/vercel.json).
+
+`DEEPSEEK_API_KEY` está guardada como secreto de producción. `EDUCLOUD_TUTOR_ENABLED=1` habilita el tutor en ese entorno. Vercel Firewall permite hasta ocho solicitudes al tutor por minuto por IP. Si configuras otro entorno, aplica su límite antes de habilitar la función. Mantén `.env` fuera del repositorio.
+
+Después de publicar un cambio, abre el enlace en incógnito y recorre el flujo completo. Crea un espacio, abre el calendario, adjunta un archivo y pregunta sobre la ley de Ohm. Abre la cita y contesta la práctica. El resultado debe aparecer en «Tu progreso».
 
 La API acepta preguntas breves por POST JSON desde el origen de la aplicación, con máximo 4 KiB de entrada y de 350 a 700 tokens según la extensión de respuesta. Limita el tiempo de la llamada y comprueba que el fragmento citado exista en el apunte. La función recibe la pregunta y opciones del tutor. El navegador guarda el historial y ofrece borrarlo. La comprobación del origen y el límite de solicitudes del Firewall son controles distintos.
 
@@ -34,6 +35,6 @@ Security check:
 - Logs/errors: la función devuelve mensajes genéricos y no registra la pregunta, las cabeceras ni la clave.
 - DB/storage rules: datos del espacio en el navegador. Los archivos seleccionados no salen del dispositivo.
 - Dependencies: se reutilizaron Vite, Node y el visor existente sin añadir dependencias.
-- Rate limiting / abuse controls: cuerpo, salida y tiempo acotados. Falta configurar y verificar la regla del Firewall en el proyecto Vercel.
-- Web risks: CSP en la configuración, destino externo fijo y respuestas sin caché. Cabeceras pendientes de comprobar en el enlace desplegado.
+- Rate limiting / abuse controls: cuerpo, salida y tiempo acotados. La regla activa de Vercel limita `/api/tutor` a ocho solicitudes por minuto por IP.
+- Web risks: se verificaron la política de contenido de la web y las respuestas sin caché de la API en producción. El destino de la consulta de IA es fijo.
 - Prototype/security debt: el espacio pertenece al navegador y usa material de ejemplo. La cuenta institucional, la ingestión y el almacenamiento de documentos siguen en el modo completo.

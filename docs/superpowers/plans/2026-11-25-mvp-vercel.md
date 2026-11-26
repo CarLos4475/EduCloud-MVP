@@ -5,4 +5,4 @@
 - [x] Conectar el tutor existente a una función que limite lo que recibe, consulte DeepSeek y permita citas solo del apunte que recibe el modelo.
 - [x] Verificar en navegador acceso, calendario, archivo, consulta con cita, práctica y progreso. Probar localmente la ruta de tutor con DeepSeek.
 - [x] Guardar la configuración de Vercel para web y función en el mismo origen.
-- [ ] Vincular el proyecto de Vercel, agregar el límite de solicitudes y verificar el enlace público. La CLI respondió que no hay una sesión iniciada.
+- [x] Vincular Vercel con el nuevo repositorio, verificar el límite de solicitudes y probar el [enlace público](https://educloud-mvp.vercel.app) en una sesión limpia.
