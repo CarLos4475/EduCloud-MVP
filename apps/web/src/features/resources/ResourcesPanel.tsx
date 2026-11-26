@@ -7,6 +7,7 @@ import type { ResourceDetail, ResourceRow } from "./types";
 import { KINDS } from "./types";
 import { ArtImage } from "../../components/Icons";
 import { localWorkspace } from "../../mvp/workspace";
+import { subjectId as ohmSubjectId } from "../../mvp/fixtures";
 
 const ACTIVE = ["queued", "running", "cancel_requested"];
 
@@ -26,8 +27,18 @@ export function ResourcesPanel({
   const [rows, setRows] = useState<ResourceRow[] | null>(null);
   const [detail, setDetail] = useState<ResourceDetail | null>(null);
   const [opening, setOpening] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const top = useRef<HTMLElement>(null);
+  const generation = useRef<AbortController>(null);
+  useEffect(() => () => generation.current?.abort(), []);
+  useEffect(() => {
+    if (resourceId && generation.current) {
+      generation.current.abort();
+      generation.current = null;
+      setCreating(false);
+    }
+  }, [resourceId]);
   const detailId = detail?.id;
   // Sitúa el recurso o el progreso del MVP al inicio de la vista.
   useEffect(() => {
@@ -101,6 +112,34 @@ export function ResourcesPanel({
     return () => clearTimeout(timer);
   }, [detail, waiting, loadList]);
 
+  async function createResource() {
+    if (generation.current) return;
+    const controller = new AbortController();
+    generation.current = controller;
+    setCreating(true);
+    setError("");
+    try {
+      const resource = await api<ResourceDetail>("/resources", {
+        method: "POST",
+        body: JSON.stringify({ subjectId, kind: "interactive" }),
+        signal: controller.signal,
+      });
+      if (!controller.signal.aborted) onResourceChange(resource.id);
+    } catch (problem) {
+      if (!controller.signal.aborted)
+        setError(
+          problem instanceof TypeError
+            ? "Se perdió la conexión. Intenta crear el recurso de nuevo."
+            : (problem as Error).message,
+        );
+    } finally {
+      if (!controller.signal.aborted) {
+        generation.current = null;
+        setCreating(false);
+      }
+    }
+  }
+
   if (detail)
     return (
       <section
@@ -134,7 +173,17 @@ export function ResourcesPanel({
           <span className="eyebrow">ESTUDIA A TU MANERA</span>
           <h2 id="resources-title">Recursos para estudiar</h2>
         </div>
-        {!localWorkspace && (
+        {localWorkspace ? (
+          subjectId === ohmSubjectId && (
+            <button
+              className="primary"
+              disabled={creating || opening}
+              onClick={() => void createResource()}
+            >
+              <span aria-hidden="true">✦ </span>Crear recurso
+            </button>
+          )
+        ) : (
           <button className="primary" onClick={onCreate}>
             + Crear un recurso
           </button>
@@ -144,6 +193,9 @@ export function ResourcesPanel({
         <p role="alert" className="form-error">
           {error}
         </p>
+      )}
+      {creating && (
+        <Skeleton lines={3} label="Creando tu reto de la ley de Ohm…" />
       )}
       <ProgressPanel
         subjectId={subjectId}

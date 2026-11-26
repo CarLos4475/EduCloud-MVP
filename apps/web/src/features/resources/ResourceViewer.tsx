@@ -5,6 +5,7 @@ import { StageProgress } from "../../components/Skeleton";
 import { localWorkspace } from "../../mvp/workspace";
 import { watch } from "../notify/watch";
 import { Connections, Exercises } from "./Exercises";
+import { OhmChallenge } from "./OhmChallenge";
 import { Flashcards, Quiz } from "./Practice";
 import type { Citation, ResourceDetail, ResourceVersion } from "./types";
 import { KINDS, type Kind } from "./types";
@@ -490,7 +491,15 @@ export function ResourceViewer({
               versionId={version.id}
             />
           )}
-          {detail.kind === "interactive" && <Interactive version={version} />}
+          {detail.kind === "interactive" &&
+            (localWorkspace && version.content?.ohmChallenge ? (
+              <OhmChallenge
+                key={version.id}
+                challenge={version.content.ohmChallenge}
+              />
+            ) : (
+              <Interactive version={version} />
+            ))}
           <Sources items={version.citations} />
         </>
       )}

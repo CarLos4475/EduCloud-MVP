@@ -1,6 +1,6 @@
 # EduCloud para revisión en Vercel
 
-Abre [EduCloud en Vercel](https://educloud-mvp.vercel.app) y elige «Crear mi espacio». Basta con un nombre. El calendario y el avance se guardan en ese navegador. Al elegir un archivo, la aplicación guarda su nombre y tamaño. El tutor responde con DeepSeek y puede citar el apunte «Ley de Ohm», que viene con el espacio. Los recursos de práctica ya están preparados para que puedas abrirlos al entrar.
+Abre [EduCloud en Vercel](https://educloud-mvp.vercel.app) y elige «Crear mi espacio». Basta con un nombre. El calendario y el avance se guardan en ese navegador. Al elegir un archivo, la aplicación guarda su nombre y tamaño. El tutor responde con DeepSeek y puede citar el apunte «Ley de Ohm», que viene con el espacio. La práctica, las tarjetas y el resumen están disponibles desde el inicio. En Recursos de Circuitos eléctricos, «Crear recurso» genera un reto interactivo con DeepSeek y lo guarda en el navegador.
 
 ## Prueba local
 
@@ -23,15 +23,15 @@ Vercel toma `main` de [EduCloud-MVP](https://github.com/CarLos4475/EduCloud-MVP)
 
 Después de publicar un cambio, abre el enlace en incógnito y crea un espacio. Abre el calendario y vuelve a Inicio. Entra por «Ver apuntes de Circuitos eléctricos», registra un archivo y elige «Preguntar al tutor». Abre la cita de la ley de Ohm, cierra el tutor y elige «Practicar». Al terminar, usa «Ver tu progreso» para consultar el resultado.
 
-La API acepta preguntas breves por POST JSON desde el origen de la aplicación, con máximo 4 KiB de entrada y de 350 a 700 tokens según la extensión de respuesta. Limita el tiempo de la llamada y comprueba que el fragmento citado exista en el apunte. La función recibe la pregunta y opciones del tutor. El navegador guarda el historial y ofrece borrarlo. La comprobación del origen y el límite de solicitudes del Firewall son controles distintos.
+La API acepta preguntas breves por POST JSON desde el origen de la aplicación, con máximo 4 KiB de entrada y de 350 a 700 tokens según la extensión de respuesta. Limita el tiempo de la llamada y comprueba que el fragmento citado exista en el apunte. La generación del reto usa la misma ruta y su límite de solicitudes. Envía solo una instrucción fija y el apunte de ejemplo. El servidor valida el texto y los valores del reto. La aplicación calcula la corriente y dibuja la simulación con sus componentes.
 
 Security check:
-- Data touched: perfil local, actividad de estudio, metadatos de adjuntos y texto de la pregunta.
+- Data touched: perfil local, actividad de estudio, metadatos de adjuntos, texto de la pregunta y retos guardados en el navegador.
 - Auth required: el perfil local no es una cuenta autenticada. La función pública presta un servicio acotado sin acceso a cuentas.
-- Authorization enforced at: la función recibe solo la pregunta y opciones acotadas, y usa un apunte fijo del proyecto.
+- Authorization enforced at: la función recibe preguntas con opciones acotadas o una acción fija de generación, y usa un apunte fijo del proyecto.
 - Secrets: clave en el servidor. Se comprobó que el valor real no aparece en el JavaScript compilado.
 - Input validation: mismo origen para el POST del navegador, JSON acotado y pregunta de hasta 480 caracteres.
-- Output rendering: Markdown seguro existente. Las citas requieren un fragmento literal del apunte.
+- Output rendering: Markdown seguro para el tutor. Las citas requieren un fragmento literal del apunte. El reto usa texto escapado y valores numéricos validados para sus controles.
 - Logs/errors: la función devuelve mensajes genéricos y no registra la pregunta, las cabeceras ni la clave.
 - DB/storage rules: datos del espacio en el navegador. Los archivos seleccionados no salen del dispositivo.
 - Dependencies: se reutilizaron Vite, Node y el visor existente sin añadir dependencias.

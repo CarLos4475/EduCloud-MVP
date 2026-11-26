@@ -17,6 +17,34 @@ const styles = {
   direct: "Ve al punto.",
 };
 const limits = { brief: 350, normal: 500, detailed: 700 };
+const challengeAction = "create-ohm-challenge";
+const challengeSystem = [
+  "Diseña un reto virtual breve de la ley de Ohm en español a partir de este apunte: " +
+    note.text,
+  "Crea una situación de taller o laboratorio. El estudiante moverá la resistencia para llegar a una corriente objetivo.",
+  "Escribe un título de hasta 55 caracteres y una situación de hasta 145 caracteres. Omite números e instrucciones de cálculo en la situación: EduCloud muestra los valores.",
+  "Elige 6, 12, 18 o 24 para voltage y un entero entre 2 y 18 inclusive para targetResistance.",
+  "Devuelve únicamente JSON con los campos title, scenario, voltage y targetResistance.",
+].join("\n");
+
+function validateChallenge(answer) {
+  const title = typeof answer?.title === "string" ? answer.title.trim() : "";
+  const scenario =
+    typeof answer?.scenario === "string" ? answer.scenario.trim() : "";
+  const { voltage, targetResistance } = answer ?? {};
+  if (
+    !title ||
+    title.length > 55 ||
+    !scenario ||
+    scenario.length > 145 ||
+    ![6, 12, 18, 24].includes(voltage) ||
+    !Number.isInteger(targetResistance) ||
+    targetResistance < 2 ||
+    targetResistance > 18
+  )
+    throw new Error("Invalid challenge");
+  return { title, scenario, voltage, targetResistance };
+}
 
 function reply(data, status = 200, headers = {}) {
   return Response.json(data, {
@@ -81,14 +109,27 @@ export function createTutorHandler({ enabled, key, requestUpstream = fetch }) {
         400,
       );
     }
-    const question =
-      typeof payload?.question === "string" ? payload.question.trim() : "";
+    const challenge = payload?.action === challengeAction;
     if (
-      !question ||
-      question.length > 480 ||
-      typeof payload.source !== "boolean" ||
-      typeof payload.allowGeneral !== "boolean" ||
-      (!payload.source && !payload.allowGeneral)
+      payload?.action !== undefined &&
+      (!challenge || Object.keys(payload).length !== 1)
+    )
+      return reply(
+        { message: "No se pudo leer la solicitud del recurso." },
+        422,
+      );
+    const question = challenge
+      ? "Prepara un reto de corriente y resistencia a voltaje constante."
+      : typeof payload?.question === "string"
+        ? payload.question.trim()
+        : "";
+    if (
+      !challenge &&
+      (!question ||
+        question.length > 480 ||
+        typeof payload.source !== "boolean" ||
+        typeof payload.allowGeneral !== "boolean" ||
+        (!payload.source && !payload.allowGeneral))
     )
       return reply(
         {
@@ -138,11 +179,11 @@ export function createTutorHandler({ enabled, key, requestUpstream = fetch }) {
         body: JSON.stringify({
           model: "deepseek-flash",
           messages: [
-            { role: "system", content: system },
+            { role: "system", content: challenge ? challengeSystem : system },
             { role: "user", content: question },
           ],
           thinking: { type: "disabled" },
-          max_tokens: limit,
+          max_tokens: challenge ? 250 : limit,
           response_format: { type: "json_object" },
         }),
       });
@@ -153,13 +194,18 @@ export function createTutorHandler({ enabled, key, requestUpstream = fetch }) {
         );
       if (!response.ok)
         return reply(
-          { message: "El tutor no pudo responder. Intenta de nuevo." },
+          {
+            message: challenge
+              ? "No se pudo crear el recurso. Intenta de nuevo."
+              : "El tutor no pudo responder. Intenta de nuevo.",
+          },
           502,
         );
       const choice = (await response.json()).choices?.[0];
       if (choice?.finish_reason !== "stop")
         throw new Error("Incomplete answer");
       const answer = JSON.parse(choice.message.content);
+      if (challenge) return reply(validateChallenge(answer));
       const text = typeof answer?.text === "string" ? answer.text.trim() : "";
       const quote =
         typeof answer?.quote === "string" ? answer.quote.trim() : "";
@@ -181,7 +227,9 @@ export function createTutorHandler({ enabled, key, requestUpstream = fetch }) {
     } catch {
       return reply(
         {
-          message: "El tutor no pudo completar la respuesta. Intenta de nuevo.",
+          message: challenge
+            ? "No se pudo crear el recurso. Intenta de nuevo."
+            : "El tutor no pudo completar la respuesta. Intenta de nuevo.",
         },
         502,
       );

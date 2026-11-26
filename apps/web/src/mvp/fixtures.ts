@@ -9,6 +9,12 @@ import type {
 export const subjectId = "circuitos";
 export const exampleNoteId = "ley-de-ohm";
 export const exampleQuizId = "practica-ohm";
+export type OhmChallenge = {
+  title: string;
+  scenario: string;
+  voltage: number;
+  targetResistance: number;
+};
 export const noteBlock = {
   materialId: exampleNoteId,
   extractionVersion: "apunte-1",
@@ -87,7 +93,28 @@ export function sampleResource(
   title: string,
 ): ResourceDetail | null {
   const content = contents[kind];
-  if (!content) return null;
+  return content ? readyResource(id, kind, target, title, content) : null;
+}
+
+export function ohmResource(challenge: OhmChallenge): ResourceDetail {
+  return readyResource(
+    crypto.randomUUID(),
+    "interactive",
+    subjectId,
+    challenge.title,
+    { ohmChallenge: challenge },
+    noteBlock.text,
+  );
+}
+
+function readyResource(
+  id: string,
+  kind: Kind,
+  target: string,
+  title: string,
+  content: unknown,
+  quote?: string,
+): ResourceDetail {
   const versionId = "v-" + id;
   return {
     id,
@@ -112,7 +139,7 @@ export function sampleResource(
         usageUnknown: false,
         jobId: "",
         content,
-        citations: [{ ...noteBlock }],
+        citations: [{ ...noteBlock, quote }],
         sourcesChanged: false,
         createdAt: new Date().toISOString(),
       },

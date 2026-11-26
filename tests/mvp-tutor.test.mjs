@@ -89,3 +89,39 @@ test("the anchored mode returns a citation only for a verbatim fragment", async 
     needsConsent: true,
   });
 });
+
+test("a one-click request generates a bounded Ohm challenge from the fixed note", async () => {
+  const resource = {
+    title: "Un motor en el taller",
+    scenario: "Ajusta la corriente que recibe un motor de prueba.",
+    voltage: 12,
+    targetResistance: 4,
+  };
+  const tutor = createTutorHandler({
+    enabled: true,
+    key: "test",
+    requestUpstream: async (_url, options) => {
+      const { messages, max_tokens: maxTokens } = JSON.parse(options.body);
+      assert.match(messages[0].content, /I = V \/ R/);
+      assert.equal(maxTokens, 250);
+      return Response.json({
+        choices: [
+          {
+            finish_reason: "stop",
+            message: { content: JSON.stringify(resource) },
+          },
+        ],
+      });
+    },
+  });
+  const body = { action: "create-ohm-challenge" };
+  assert.equal(
+    (await tutor(request({ ...body, prompt: "un prompt" }))).status,
+    422,
+  );
+  const response = await tutor(request(body));
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), resource);
+  resource.targetResistance = 0;
+  assert.equal((await tutor(request(body))).status, 502);
+});

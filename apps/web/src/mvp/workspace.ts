@@ -3,9 +3,11 @@ import type { Kind } from "../features/resources/types";
 import {
   exampleNoteId,
   noteBlock,
+  ohmResource,
   sampleResource,
   seedWorkspace,
   subjectId,
+  type OhmChallenge,
 } from "./fixtures";
 
 export const localWorkspace = import.meta.env.VITE_EDUCLOUD_MVP === "true";
@@ -105,6 +107,8 @@ const json = (data: unknown, status = 200) => Response.json(data, { status });
 const items = (rows: unknown[]) => json({ items: rows, nextCursor: null });
 const missing = () => json({ message: "No encontramos este elemento." }, 404);
 const unavailable = (message: string) => json({ message }, 422);
+const resourceLimit = () =>
+  unavailable("Ya tienes 30 recursos en este navegador.");
 const row = (data: Record<string, unknown>): Row => ({
   ...data,
   revision: 1,
@@ -448,8 +452,46 @@ export async function localRequest(
         return unavailable(
           "Los recursos preparados están disponibles en Circuitos eléctricos.",
         );
-      if (db.resources.length >= 30)
-        return unavailable("Ya tienes 30 recursos en este navegador.");
+      if (db.resources.length >= 30) return resourceLimit();
+      if (body.kind === "interactive") {
+        const hasSource = () =>
+          db.lists.subjects.some(
+            (subject) => subject.id === subjectId && !subject.archived,
+          ) &&
+          db.materials.some(
+            (material) =>
+              material.id === exampleNoteId && material.status === "ready",
+          );
+        if (!hasSource())
+          return unavailable(
+            "Abre el apunte de la ley de Ohm para crear el recurso.",
+          );
+        const response = await fetch("/api/tutor", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: options.signal,
+          body: JSON.stringify({ action: "create-ohm-challenge" }),
+        });
+        if (!response.ok)
+          return json(
+            {
+              message:
+                response.status === 429
+                  ? "Hay muchas solicitudes ahora. Intenta de nuevo en un momento."
+                  : "No se pudo crear el recurso. Intenta de nuevo.",
+            },
+            response.status,
+          );
+        const challenge: OhmChallenge = await response.json();
+        options.signal?.throwIfAborted();
+        if (!hasLocalSession() || db !== state || !hasSource())
+          return missing();
+        if (db.resources.length >= 30) return resourceLimit();
+        const resource = ohmResource(challenge);
+        db.resources.push(resource);
+        persist();
+        return json(resource, 201);
+      }
       const resource = sampleResource(
         crypto.randomUUID(),
         body.kind as Kind,

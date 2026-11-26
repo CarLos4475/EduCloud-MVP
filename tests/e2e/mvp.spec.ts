@@ -6,16 +6,25 @@ test("el espacio local conserva el calendario y permite consultar el apunte con 
   page,
 }) => {
   if (!process.env.EDUCLOUD_MVP_LIVE)
-    await page.route("**/api/tutor", (route) =>
-      route.fulfill({
+    await page.route("**/api/tutor", (route) => {
+      if (route.request().postDataJSON()?.action === "create-ohm-challenge")
+        return route.fulfill({
+          json: {
+            title: "Un motor en el taller",
+            scenario: "Ajusta la corriente que recibe un motor de prueba.",
+            voltage: 12,
+            targetResistance: 4,
+          },
+        });
+      return route.fulfill({
         json: {
           text: "A voltaje constante, una resistencia mayor reduce la corriente.",
           cited: true,
           quote:
             "Si el voltaje permanece fijo y aumenta la resistencia, la corriente disminuye.",
         },
-      }),
-    );
+      });
+    });
   const baseUrl = process.env.EDUCLOUD_MVP_URL ?? "http://127.0.0.1:5173";
   await page.goto(baseUrl);
   await page.getByRole("button", { name: "Crear mi espacio" }).click();
@@ -66,7 +75,9 @@ test("el espacio local conserva el calendario y permite consultar el apunte con 
   const tutorOptions = page.getByText("Opciones del tutor", { exact: true });
   await tutorOptions.click();
   await expect(
-    page.getByRole("checkbox", { name: "Autorizar conocimiento general solo para esta pregunta" }),
+    page.getByRole("checkbox", {
+      name: "Autorizar conocimiento general solo para esta pregunta",
+    }),
   ).not.toBeChecked();
   await tutorOptions.click();
   await page
@@ -87,6 +98,29 @@ test("el espacio local conserva el calendario y permite consultar el apunte con 
   await page.getByRole("button", { name: "Ver mi resultado" }).click();
   await expect(page.getByText(/Acertaste 1 de 1/)).toBeVisible();
   await page.getByRole("button", { name: "Ver tu progreso" }).click();
-  await expect(page.getByRole("heading", { name: "Tu progreso" })).toBeInViewport();
+  await expect(
+    page.getByRole("heading", { name: "Tu progreso" }),
+  ).toBeInViewport();
   await expect(page.getByText("100%", { exact: true })).toBeVisible();
+  await page
+    .getByRole("button", { name: "Crear recurso", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/materias\/circuitos\/recursos\/[\w-]+$/, {
+    timeout: 22_000,
+  });
+  const resistance = page.getByRole("slider", { name: "Resistencia" });
+  const goal = page.getByTestId("ohm-goal");
+  await expect(resistance).toBeVisible();
+  // The goal is always reachable with a whole-number resistance.
+  const { voltage, current } = await goal.evaluate((element) => ({
+    voltage: Number(element.dataset.voltage),
+    current: Number(element.dataset.current),
+  }));
+  await resistance.fill(String(Math.round(voltage / current)));
+  await expect(page.getByText("¡Meta alcanzada!")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "De dónde sale" }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(resistance).toBeVisible();
 });

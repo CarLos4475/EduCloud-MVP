@@ -12,7 +12,7 @@ Al estudiar para una materia, es común tener los apuntes en un archivo, los pen
 
 En el [MVP público de EduCloud](https://educloud-mvp.vercel.app), crea un espacio y elige **Ver apuntes de Circuitos eléctricos**. Pregúntale al tutor qué pasa con la corriente cuando aumenta la resistencia y abre la cita del apunte sobre la ley de Ohm. Resuelve la práctica y elige **Ver tu progreso** para consultar tu resultado. El calendario está disponible desde el menú.
 
-El tutor responde con DeepSeek. El espacio y el avance se guardan en el navegador. El selector muestra el nombre y el tamaño del archivo que eliges. Para las consultas, el tutor usa el apunte incluido en la materia.
+El tutor responde con DeepSeek. En **Recursos**, el botón **Crear recurso** usa el apunte de la ley de Ohm para generar un reto en el que puedes mover la resistencia y ver cómo cambia la corriente. El reto y el avance se guardan en el navegador. El selector de archivos muestra el nombre y el tamaño del archivo que eliges.
 
 ## ¿Cómo usaríamos datos, ML e IA?
 
